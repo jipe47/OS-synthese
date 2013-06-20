@@ -17,7 +17,7 @@ Les bénéfices du multithreading :
 
 Programmer un système multicoeur est beaucoup plus difficile pour les programmeurs : il faut diviser les activités, les balancer, diviser les données et tenir compte d'une éventuelle dépendance, et tester et débugger les programmes.
 
-L'hyperthreading d'un core est la duplication du datapath, du controlpath et de l'ALU : seul le cache est partagé. Dès lors, il y a un bon match entre l'hyperthreading et le multithreading, on peut même faire tourner deux threads sur le même core. C'est meilleur qu'avec plusieurs processus (multiprocessing)  car le cache hit rate est plus grand et parce que deux processus ont des espaces d'adresses différents.
+L'hyperthreading d'un core est la duplication du datapath et du controlpath : seul le cache et l'ALU sont partagés. Pour ce dernier, les registres sont dupliqués et alternés lors de l'exécution. Dès lors, il y a un bon match entre l'hyperthreading et le multithreading, on peut même faire tourner deux threads sur le même core. C'est meilleur qu'avec plusieurs processus (multiprocessing)  car le cache hit rate est plus grand et parce que deux processus ont des espaces d'adresses différents.
 
 La gestion des threads se fait par des librairies au niveau utilisateur (POSIX avec Pthread, Win32 threads et Java threads). Le noyau aussi utilise des threads, par exemple pour prendre en charge les appels systèmes des utilisateurs.
 
@@ -70,7 +70,7 @@ Les threads Java sont supportés par la machine virtuelle, qui généralement ut
 	
 	Un thread qui appelle fork() peut soit créer un nouveau processus avec tous les threads, soit créer un nouveau thread équivalent.
 	
-	Lorsqu'un thread fait exec(), seul son code sera changé, car cela n'a pas de sens de modifier/supprimer les autres threads en modifiant le processus parent.
+	Lorsqu'un thread fait exec(), le code du processus parent est changé, donc tous les threads sont supprimés.
 	
 	\subsection{Annulation de threads}
 	

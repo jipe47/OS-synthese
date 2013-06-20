@@ -24,7 +24,7 @@ L'ordonnanceur du CPU sélectionne un processus parmi ceux qui sont en mémoire 
 
 Un système est dit work conserving s'il alloue des ressources lorsqu'il y a une demande. Dès lors, un système non-work conserving peut ne pas attribuer des ressources à un processus qui en a besoin.
 
-Un accès mémoire ne met par le processus en état d'attente, car le délai est très court (quelques dizaines/centaines de cycles). L'overhead du changement de contexte est trop gros comparé à ce temps d'attente, qui lui-même est beaucoup plus petit que pour une opération I/O. C'est du non work conserving à petite échelle.
+Un accès mémoire ne met pas le processus en état d'attente, car le délai est très court (quelques dizaines/centaines de cycles). L'overhead du changement de contexte est trop gros comparé à ce temps d'attente, qui lui-même est beaucoup plus petit que pour une opération I/O. C'est du non work conserving à petite échelle.
 
 De plus, une mise en attente à chaque accès mémoire n'est pas envisageable, car il y aurait un changement de contexte quasiment à chaque instruction. Cela va entraîner une diminution de l'efficacité du cache, car beaucoup de processus sont exécutés en même temps. Dès lors, il y aura une partition du cache, plus de cache miss et donc plus d'accès à la mémoire. Au final, tout le système est ralenti.
 
@@ -62,9 +62,9 @@ Exemple :
 
 \dessinS{21}{.3}
 
-Les performances dépendent de l'ordre d'arrivée des processus. Par exemple, si on a $P_2$, $P_3$ et $P_1$, les temps d'attente sont 6, 0 et 3 (en moyenne 3).
+Les performances dépendent de l'ordre d'arrivée des processus. Par exemple, si on a $P_2$, $P_3$ et $P_1$, les temps d'attente sont 6, 0 et 3 (en moyenne 2).
 
-Effet Convoy : des processus longs peuvent ralentir tout le système.
+Effet Convoy : des processus longs sont exécutés avant des processus courts, ce qui ralentit tout le système.
 
 \subsection{Shortest-job-first scheduling}
 
@@ -82,18 +82,18 @@ Si $\alpha = 0$, l'histoire récente n'est pas utilisée. Si $\alpha = 1$, seul 
 
 Une priorité (généralement un entier) est associée à chaque processus, et le CPU est alloué au processus qui a la plus haute priorité (le plus petit entier).
 
-\note{La liste qui suit vient de mes notes, je ne sais pas d'où ça vient.}
-\begin{itemize}
-	\item nouvelle façon de préempter un processus : ajout d'un processus avec une plus petite priorité
-	\item non préemptive : processus avec une plus grande priorité
-\end{itemize}
-
-
 La stratégie SJF est un scheduling avec priorité où la priorité est la prédiction de la durée du prochain burst CPU.
 
-Problème : starvation ; les processus de basse priorité peuvent ne jamais être exécutées.
+Problème : starvation ; les processus de basse priorité peuvent ne jamais être exécutés.
 
 Solution : aging ; au fur et à mesure que le temps s'écoule, la priorité des processus augmente.
+
+
+\note{La liste qui suit vient de mes notes, je ne sais pas d'où ça vient.}
+\begin{itemize}
+	\item nouvelle façon de préempter un processus : ajout d'un processus avec une plus grande priorité
+	\item non préemptive : processus avec une plus petite priorité
+\end{itemize}
 
 \subsection{Round Robin}
 
@@ -107,6 +107,8 @@ Plus $q$ est petit et plus il y a d'interactions. Cependant,
 	\item si $q$ est grand, on retourne dans le cas d'une FIFO
 	\item si $q$ est petit, il faut qu'il soit tout de même suffisamment large par rapport au context switch, sinon l'overhead qu'il introduit (quelques micro-secondes) sera trop gros.
 \end{itemize}
+
+On a un meilleur temps de réponse mais un plus grand turnaround moyen.
 
 \subsection{File à plusieurs niveaux}
 
@@ -176,7 +178,7 @@ Il y a plusieurs types d'affinité :
 
 \section{Processeurs multi-core}
 
-Il s'agit de processeurs avec plusieurs coeurs sur une seule puce. Cela permet d'avoir de meilleurs performances et de consommer moins d'énergies.
+Il s'agit de processeurs avec plusieurs coeurs sur une seule puce. Cela permet d'avoir de meilleurs performances et de consommer moins d'énergie.
 
 Les threads multiples par coeur peuvent aussi augmenter. L'idée est de profiter du memory stall pour faire progresser un autre thread pendant que la mémoire est accédée et les données rapatriées.
 

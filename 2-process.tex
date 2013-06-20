@@ -35,7 +35,7 @@ Toutes les informations associées à un processus sont stockées dans un PCB (p
 	\item les infos de status I/O
 \end{itemize}
 
-Toutes ces informations sont stockées/chargées lorsqu'un processus perd/obtient l'accès au CPU, dans le cadre d'un changement de contexte. ce changement est hardwired et donc optimisé pour que cela se fasse en un minimum de cycles.
+Toutes ces informations sont stockées/chargées lorsqu'un processus perd/obtient l'accès au CPU, dans le cadre d'un changement de contexte. Ce changement est hardwired et donc optimisé pour que cela se fasse en un minimum de cycles.
 
 Il y a plusieurs listes de processus dans le noyau ; ceux-ci passe d'une liste à l'autre en fonction de leur évolution :
 
@@ -52,15 +52,13 @@ Il y a plusieurs listes de processus dans le noyau ; ceux-ci passe d'une liste �
 Il y a deux schedulers :
 
 \begin{itemize}
-	\item long-term scheduler (ou job scheduler) : sélectionne les processus qui seront placés dans la ready queue. Il est invoqué irrégulièrement (secondes, minutes) (donc peut se permettre d'être lent) et contrôle le degré de multiprogramming.
-	\item short-term scheduler (ou CPU scheduler): sélectionne quels processus doivent être exécutés et alloue le CPU. Il est appelés très fréquemment (millisecondes), donc doit être très rapide et efficace.
+	\item long-term scheduler (ou job scheduler) : sélectionne les processus (stockés sur disques) qui seront placés dans la ready queue. Il est invoqué irrégulièrement (secondes, minutes) (donc peut se permettre d'être lent) et contrôle le degré de multiprogramming.
+	\item short-term scheduler (ou CPU scheduler): sélectionne quels processus doivent être exécutés et alloue le CPU. Il est appelé très fréquemment (millisecondes), donc doit être très rapide et efficace.
 \end{itemize}
 
 Dans ce contexte, on peut définir le jiffy comme le temps entre deux interruptions d'horloge. Il est en général de 10ms (4ms sous Linux).
 
-Certains OS n'ont pas de scheduler à long terme. Du coup, ils gardent tout en mémoire ; il y a donc une limite sur le nombre de processus résidant en mémoire.
-
-\note{$\rightarrow$ pourquoi cela est-il acceptable ?}
+Certains OS n'ont pas de scheduler à long terme. Du coup, ils gardent tout en mémoire ; il y a donc une limite sur le nombre de processus résidant en mémoire. Cette limite n'est pas grave car des processus peuvent être swappés.
 
 \dessin{12}
 
@@ -80,9 +78,13 @@ Idéalement, il faut un mix d'IO-bound (si tous les processus l'étaient, la rea
 
 Des processus parents créent des processus enfants, qui à leur tour créent des processus, ce qui forme un arbre. Chaque processus est identifié par un identifiant, le PID.
 
-Il y a un partage des ressources : les enfants se partagent un sous-ensemble des ressources du parent.
+Il y a un partage des ressources : 
 
-\note{$\rightarrow$ Parent and children share all resources but parent and child share no resources (? [3.18])}
+\begin{itemize}
+	\item soit toutes les ressources sont partagées,
+	\item soit une partie des ressources sont partagées,
+	\item soit rien n'est partagé.
+\end{itemize}
 
 Au niveau de l'exécution, les enfants et le parent s'exécutent simultanément, mais le parent attend que ses enfants se terminent avant de se terminer lui-même.
 
@@ -106,10 +108,10 @@ Les processus d'un système peuvent être indépendants ou coopérer. Dans ce ca
 	\item partage d'informations
 	\item speedup des calculs
 	\item modularité
-	\item par que c'est plus convénient
+	\item parce que c'est plus convénient
 \end{itemize}
 
-Des processus coopérants ont besoin de communication interprocessus (inteprocess communication, IPC). Il y a deux modèles différents d'IPC : (a) l'envoi de messages et (b) la mémoire partagée.
+Des processus coopérants ont besoin de communication interprocessus (interprocess communication, IPC). Il y a deux modèles différents d'IPC : (a) l'envoi de messages et (b) la mémoire partagée.
 
 \dessin{14}
 
@@ -143,7 +145,7 @@ Des processus coopérants ont besoin de communication interprocessus (inteproces
 		\item le lien peut être unidirectionnel, mais généralement il est bi-directionnel
 	\end{itemize}
 	
-	\paragraph{Communication indirecte} Les messages sont envoyés et reçus à partir de mailboxes (connus sous le nom de port). Chaque mailbox a un identifiant unique et les processus ne peuvent communiquer que s'ils partagent une mailbox. Le lien de communication a les propriétés suivantes :
+	\paragraph{Communication indirecte} Les messages sont envoyés et reçus à partir de mailboxes (connues sous le nom de port). Chaque mailbox a un identifiant unique et les processus ne peuvent communiquer que s'ils partagent une mailbox. Le lien de communication a les propriétés suivantes :
 	
 	\begin{itemize}
 		\item le lien est établi uniquement si les processus partagent une mailbox
@@ -167,13 +169,13 @@ Des processus coopérants ont besoin de communication interprocessus (inteproces
 	
 	L'envoi de messages peut être bloquant ou non-bloquant.
 	
-	Bloquer l'envoi de message est considéré comme synchrone : l'expéditeur est bloqué jusqu'à ce que le message soit reçu et inversement le récepteur est bloqué tant que le message n'a pas été envoyé.
+	Bloquer l'envoi de messages est considéré comme synchrone : l'expéditeur est bloqué jusqu'à ce que le message soit reçu et inversement le récepteur est bloqué tant que le message n'a pas été envoyé.
 	
 	Ne pas bloquer l'envoi de message est considéré comme asynchrone : l'expéditeur envoie le message et continue son exécution, tandis que le récepteur obtient un message valide ou null.
 	
 	\subsubsection{Buffering}
 	
-	Une file de message est attachée à chaque lien. Trois politiques sont possibles :
+	Une file de messages est attachée à chaque lien. Trois politiques sont possibles :
 	
 	\begin{itemize}
 		\item capacité 0 : aucun message. L'expéditeur doit alors attendre le récepteur (rendezvous)

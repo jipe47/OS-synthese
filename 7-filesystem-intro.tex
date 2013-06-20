@@ -43,7 +43,7 @@ Ces informations sont gardées dans la structure de répertoire (directory struc
 
 \section{Opérations sur les fichiers}
 
-Un fichier est un type de données abstraites (abstract data type), c'est-à-dire que c'est un type de données avec des opérations permettant de la manipuler. Ce n'est donc pas une structure de données (data structure), qui est plutôt utilisée pour représenter les données. Vu que le type est abstrait, cela veut dire qu'il peut y avoir plusieurs instances dans un programme.
+Un fichier est un type de données abstraites (abstract data type), c'est-à-dire que c'est un type de données avec des opérations permettant de les manipuler. Ce n'est donc pas une structure de données (data structure), qui est plutôt utilisée pour représenter les données. Vu que le type est abstrait, cela veut dire qu'il peut y avoir plusieurs instances dans un programme.
 
 On a les opérations suivantes :
 
@@ -73,7 +73,7 @@ Si jamais il y a une demande de lecture et une demande de truncate en même temp
 		
 		\item file table : table commune et qui contient les méta-données de tous les fichiers ouverts
 		\item Chaque processus a une table qui liste les fichiers utilisés, avec la position, un pointeur vers les méta-données et les droits d'accès
-		\item file-open count : compteur du nombre de fois que le fichier est ouvert, afin de pouvoir retirer des données de la table des fichiers ouverts lorsque les processus le ferme
+		\item file-open count : compteur du nombre de fois que le fichier est ouvert, afin de pouvoir retirer des données de la table des fichiers ouverts lorsque les processus le ferment
 	\end{itemize}
 	
 	\subsection{Ouverture de fichier avec verrou}
@@ -84,9 +84,9 @@ Si jamais il y a une demande de lecture et une demande de truncate en même temp
 	
 	\begin{itemize}
 		\item mandatory : l'accès est refusé selon le type de verrou tenu et demandé. Ainsi, openlock() et read() sont autorisés par d'autres processus, mais pas write().
-		\item[$\rightarrow$] le verrou est imposé à l'ouverture
-		\item advisory : les processus peuvent savoir le statut des verrous est décide de ce qu'ils vont faire ; c'est au programmeur de tout gérer.
-		\item[$\rightarrow$] il faut utiliser openlock() pour locker proprement le fichier.
+		\item[$\rightarrow$] le verrou est imposé à l'ouverture ; un seul processus a le verrou, l'OS refusera de l'attribuer à un autre
+		\item advisory : les processus peuvent savoir le statut des verrous et décident de ce qu'ils vont faire ; c'est au programmeur de tout gérer.
+		\item[$\rightarrow$] il faut utiliser openlock() pour locker proprement le fichier. C'est le software qui gère le lock, l'OS n'empêchera pas l'acquisition du verrou.
 	\end{itemize}
 	
 	
@@ -185,7 +185,7 @@ Un directory structure est une connexion de noeuds qui contiennent des informati
 	
 	\begin{itemize}
 		\item de l'efficacité, notamment localiser un fichier rapidement
-		\item la posssibilité de nommer les fichiers, ce qui est plus simple pour les utilisateurs. Ainsi, deux utilisateurs peuvent avoir le même nom pour différents fichiers, et le même fichier peut avoir plusieurs noms différents
+		\item la possibilité de nommer les fichiers, ce qui est plus simple pour les utilisateurs. Ainsi, deux utilisateurs peuvent avoir le même nom pour différents fichiers, et le même fichier peut avoir plusieurs noms différents
 		\item la possibilité de grouper des fichiers par leurs propriétés (tous les programmes, tous les jeux, etc)
 	\end{itemize}
 	
@@ -197,7 +197,7 @@ Un directory structure est une connexion de noeuds qui contiennent des informati
 		
 		\begin{itemize}
 			\item[+] facile à maintenir (par exemple, une recherche binaire est possible après avoir trié les noms) 
-			\item[+] facilité de groupage
+			\item[-] groupage impossible
 			\item[-] les noms doivent être uniques
 		\end{itemize}
 		
@@ -213,7 +213,7 @@ Un directory structure est une connexion de noeuds qui contiennent des informati
 			\item[+] plusieurs fichiers peuvent avoir le même nom,... 
 			\item[-] ... mais uniquement pour des utilisateurs distincts
 			\item[-] pas de capacité de groupage
-			\item[-] un utilisateur ne peut pas avoir deux fichiers qui portentle même nom
+			\item[-] un utilisateur ne peut pas avoir deux fichiers qui portent le même nom
 		\end{itemize}
 		
 				
@@ -251,14 +251,7 @@ Un directory structure est une connexion de noeuds qui contiennent des informati
 			\item utiliser une solution avec un compteur entry-hold.
 		\end{itemize}
 		
-		\note{J'ai pas compris la fin du slide 10.28, du coup la suite de cette sous-section}
-		
-		New directory entry type :
-		
-		\begin{itemize}
-			\item Link– another name (pointer) to an existing file"
-			\item Resolve the link– follow pointer to locate the file
-		\end{itemize}
+		On a un nouveau type d'entrée : un lien, qui pointe vers un fichier existant. La résolution du lien consiste à suivre le pointeur.
 		
 		\subsubsection{Répertoire à graphe général}
 		
@@ -321,9 +314,9 @@ Pour permettre le partage de fichiers, on utilise des identifiants utilisateurs 
 	A cause de l'aspect distant, il est nécessaire de prendre en compte de nouveaux modes de défaillance.  La récupération d'une défaillance peut impliquer les informations sur chaque requête distance. Ainsi, des protocoles stateless comme NFS incluent toutes ces informations dans chaque requête, ce qui permet une récupération facile mais est moins sécurisé.
 	
 	
-	\subsection{Protection}
+\section{Protection}
 	
-	Le créateur/propriétaire d'un fichier devrait être capable de contrôler ce qui peut être fait avec et par qui. Ainsi, on a les types d'accès suivants :
+Le créateur/propriétaire d'un fichier devrait être capable de contrôler ce qui peut être fait avec et par qui. Ainsi, on a les types d'accès suivants :
 	
 	\begin{itemize}
 		\item read

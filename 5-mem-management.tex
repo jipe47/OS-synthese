@@ -10,7 +10,7 @@ Chaque programme possède une adresse de base (qui aura pour adresse virtuelle 0
 
 \section{Liaison des instructions et des données à la mémoire}
 
-L'address binding des instructions et des données à des adresses mémoires peut se produire à trois étapes différentes :
+L'address binding consiste à mapper une adresse d'un espace d'adresses à un autre. La liaison des instructions et des données à des adresses mémoires peut se produire à trois étapes différentes :
 
 \begin{itemize}
 	\item à la compilation (compile time) : si la localisation de la mémoire est connue d'avance, du code absolu peut être généré. Il faut recompiler le code si l'adresse de départ change.
@@ -36,9 +36,9 @@ L'address binding des instructions et des données à des adresses mémoires peu
 	
 	\subsection{Liaison dynamique (dynamic linking)}
 	
-	L'étape de linkage est postposée jusqu'à l'exécution du programme, où on ne charge que ce dont on a besoin.
+	L'étape de linkage est postposée jusqu'à l'exécution du programme, où on ne charge que les librairies dont on a besoin.
 	
-	Une petite portion de code, le stub, est utilisé pour localiser la routine appropriée de la librairie en mémoire. Il se remplace alors par l'adresse de la routine et l'exécute, après que l'OS vérifié que la routine est dans l'espace d'adresses du processus.
+	Une petite portion de code, le stub, est utilisée pour localiser la routine appropriée de la librairie en mémoire. Il se remplace alors par l'adresse de la routine et l'exécute, après que l'OS vérifié que la routine est dans l'espace d'adresses du processus.
 	
 	Le dynamic linking est particulièrement utile pour les librairies, qui peuvent être partagées entre plusieurs programmes (shared libraries). On peut également avoir différentes versions de la même librairie dynamique au même moment dans le système.
 
@@ -87,11 +87,11 @@ Le problème est que les partitions libres sont éparpillées en mémoire, et qu
 
 	\subsection{Problème d'allocation d'espace dynamique}
 	
-	On cherche dont à satisfaire une requête de taille $n$ à partir d'une liste de partitions libres. Plusieurs stratégies existent :
+	On cherche donc à satisfaire une requête de taille $n$ à partir d'une liste de partitions libres. Plusieurs stratégies existent :
 	
 	\begin{itemize}
 		\item first-fit : on utilise la première partition qui convient
-		\item best-fit : on utilise la plus petite partition qui est suffisamment grande, ce qui implique de parcourir entièrement la liste (sauf si elle est triée selon la taille des partitions). Cela produit des plus petites partitions.
+		\item best-fit : on utilise la plus petite partition qui est suffisamment grande, ce qui implique de parcourir entièrement la liste (sauf si elle est triée selon la taille des partitions). Cela produit des plus petites partitions ; le risque de fragmentation externe est plus élevé.
 		
 		\item worst-fit : on utilise la plus grande partition, ce qui implique aussi un parcours entier de la liste, mais produit des plus grandes partitions libres.
 	\end{itemize}
@@ -104,17 +104,15 @@ Le problème est que les partitions libres sont éparpillées en mémoire, et qu
 	
 	\begin{itemize}
 		\item la fragmentation externe : l'espace mémoire existe pour satisfaire une requête, mais n'est pas continu
-		\item la fragmentation interne : la mémoire allouée peut être plus petite que la mémoire demandée. La différence de ces deux mémoires est interne à la mémoire du processus mais n'est pas utilisée.
+		\item la fragmentation interne : la mémoire allouée peut être plus grande que la mémoire demandée. La différence de ces deux mémoires est interne à la mémoire du processus mais n'est pas utilisée.
 	\end{itemize}
 	
 	On peut réduire la fragmentation externe avec une compaction : on rassemble toutes les partitions libres en un seul bloc. Cela est possible que si la relocation est dynamique et est faite à l'exécution.
 	
-	\note{Je ne pige pas la fin de cette sous-section.}
-	
-	On a cependant un problème d'I/O : si un programme est déplacé, le buffer qui lui était attribué n'est plus utilisable. On a alors deux solutions :
+	On a cependant un problème d'I/O : si un programme est déplacé, le buffer qui lui était attribué n'est plus utilisable car il est aussi déplacé et le périphérique I/O ne sera pas au courant. On a alors deux solutions :
 	
 	\begin{enumerate}
-		\item ne pas bouger les programmes en attente d'IO, mais cela réduit l'efficacité
+		\item ne pas bouger les programmes en attente d'I/O, mais cela réduit l'efficacité
 		\item le device driver écrit dans la mémoire de l'OS, le noyau va alors transmettre les données à l'espace utilisateur. On a alors deux écritures pour toute opération I/O, elles sont plus lentes.
 	\end{enumerate}
 	
@@ -158,10 +156,10 @@ Le mécanisme de paging conduit nécessairement à de la fragmentation interne, 
 	
 	\begin{itemize}
 		\item PTBR - Page-table base register : pointe la table
-		\item PRLR - Page-table length register : indique la taille de la table
+		\item PTLR - Page-table length register : indique la taille de la table
 	\end{itemize}
 	
-	Avec ce schéma, chaque accès à une donnée ou une instruction requière deux accès mémoire :
+	Avec ce schéma, chaque accès à une donnée ou une instruction requiert deux accès mémoire :
 	
 	\begin{itemize}
 		\item un pour accéder à la table des pages
@@ -170,7 +168,7 @@ Le mécanisme de paging conduit nécessairement à de la fragmentation interne, 
 	
 	Afin d'accélérer les opérations en diminuant les accès, on utilise un cache hardware à mémoire associative, appelé le TLB (translation look-aside buffer). Il y a un TLB par CPU. (TLB shootdown : communication entre des TLBs pour supprimer des entrées dans les autres TLBs.)
 	
-	Certains TLBs stockent dans chaque entrée un ASID (address-space identifier), qui identifie de manière unique chaque processus, afin d'offrir une protection de l'espace d'adresses pour ce processus.
+	Certains TLBs stockent dans chaque entrée un ASID (address-space identifier), qui identifie de manière unique chaque processus, afin d'offrir une protection de l'espace d'adresses pour ce processus et de permettre à plusieurs processus d'utiliser le TLB. S'il n'y a pas d'ASID, le TLB doit être vidé à chaque fois qu'une table de pages est sélectionnée, afin de ne pas délivrer des adresses erronées.
 	
 	Un TLB est une mémoire physique associative, où la recherche est effectuée en parallèle. Cela la rend plus rapide, mais consomme plus d'énergie et nécessite plus de circuits, du coup les comparateurs prennent plus de place, ce qui fait que le TLB est au final assez petit. Ainsi, si $p$ est dans ce registre associatif, on récupère le $d$ associé, sinon on va chercher $d$ dans la table des pages en mémoire.
 	
@@ -236,12 +234,15 @@ Le mécanisme de paging conduit nécessairement à de la fragmentation interne, 
 	
 	\subsubsection{Tables de pages inversée}
 	
-	Il y a une entrée pour chaque page de mémoire réelle, qui consiste en l'adresse virtuelle de la page stockée dans ce vrai emplacement mémoire, avec des informations sur le processus qui possède la page.
+	Il y a une entrée pour chaque page de mémoire réelle (physiquement allouée), qui consiste en l'adresse virtuelle de la page stockée dans ce vrai emplacement mémoire, avec des informations sur le processus qui possède la page.
 	
-	Cela permet de diminuer la mémoire nécessaire pour stocker chaque page table, mais cela augmente le temps nécessaire pour procéder à une recherche. On peut utiliser une hash table pour limiter les recherches à une ou quelques unes entrées de la table des pages.
+	Cela permet de diminuer la mémoire nécessaire pour stocker chaque page table, mais cela augmente le temps nécessaire pour procéder à une recherche. On peut utiliser une hash table pour limiter les recherches à une ou quelques unes entrées de la table des pages. Un accès mémoire est nécessaire, deux si on utilise une table de hachage.
+	
+	Il n'y a donc qu'une seule page table dans le système, avec une taille adaptée, mais qui est plus lente. La table est dite inversée car elle est triée par rapport aux adresses physiques pour récupérer une adresser virtuelle.
 	
 	\dessinS{38}{0.5}
 	
+	Il y a des difficultés pour implémenter des pages partagées, car généralement ce sont plusieurs adresses virtuelles qui sont mappées à une même adresse physique, or il n'y a normalement qu'une entrée par frame dans cette table.
 	
 \section{Segmentation}
 
@@ -259,7 +260,7 @@ Une adresse va alors consister en un tuple (numéro de segment, offset). On aura
 		\item une limite pour la longueur du segment
 	\end{itemize}
 	
-	\item STBR - Segment-table base register : un registre qui pointe vers le début de la page en mémoire
+	\item STBR - Segment-table base register : un registre qui pointe vers le début de la table en mémoire
 	\item STLR - Segment-table length register : un registre qui indique le nombre de segments utilisés par un programme. De ce fait, un segment $s$ est légal si $s < STLR$.
 \end{itemize}
 
@@ -270,3 +271,10 @@ De la mémoire peut être partagée au niveau des segments. Vu que leur longueur
 \dessinS{40}{0.5}
 
 Si un segment est très gros, on peut utiliser un mécanisme de pages en dessous ; la table des segments associera un segment à une adresse virtuelle qu'il faudra convertir en adresse physique.
+
+Désavantages de la segmentation :
+
+\begin{itemize}
+	\item il y a un risque de fragmentation externe
+	\item lors de swap, il faut placer en mémoire des segments de taille variable
+\end{itemize}

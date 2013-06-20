@@ -8,7 +8,7 @@ Un ensemble de services est fourni à l'utilisateur par l'OS :
 	\item une interface utilisateur, qui vont de CLI (command-line interface) à GUI (Graphics User Interface).
 	\item l'exécution de programmes ; un OS peut charger un programme en mémoire, le lancer et le terminer (normalement ou après une erreur).
 	\item des opérations I/O, qui impliquent un fichier ou un périphérique I/O.
-	\item la manipulation d'un système de fichier : il faut pouvoir lire, écrire et supprimer des fichiers et des répertoire, ainsi qu'effectuer des recherches, gérer les permissions, etc.
+	\item la manipulation d'un système de fichiers : il faut pouvoir lire, écrire et supprimer des fichiers et des répertoires, ainsi qu'effectuer des recherches, gérer les permissions, etc.
 	\item des moyens de communication entre les processus, sur le même ordinateur ou à travers le réseau. Cela peut se faire par de la mémoire partagée ou des envois de messages
 	\item la détection d'erreurs, dans le CPU, dans les périphériques I/O ou dans les programmes utilisateurs. Pour chaque erreur, l'OS doit effectuer l'action appropriée pour la corriger au mieux. Des facilités de debug permettent d'utiliser le système plus efficacement.
 	
@@ -24,7 +24,7 @@ Un ensemble de services est fourni à l'utilisateur par l'OS :
 
 	\subsection{CLI}
 	
-	Une CLI permet d'entrer directement les commandes. Parfois c'est implémenté dans le noyau (ex : DOS), parfois avec des programmes systèmes (ex : UNIX). Il existe de nombreuses variantes de CLI (les shells), avec des ajous de commandes ou d'autres fonctionnalités. 
+	Une CLI permet d'entrer directement les commandes. Parfois c'est implémenté dans le noyau (ex : DOS), parfois avec des programmes systèmes (ex : UNIX). Il existe de nombreuses variantes de CLI (les shells), avec des ajouts de commandes ou d'autres fonctionnalités. 
 	
 	\subsection{GUI}
 	
@@ -85,7 +85,7 @@ Ce sont des programmes qui fournissent un environnement pour le développement e
 	\item modification de fichiers.
 	\item support de langages de programmation : compilateur, assembleurs, débuggers et interpréteurs.
 	\item chargement et exécution de programmes.
-	\item communication  : connections virtuelles entre des processus, des utilisateurs et d'autres systèmes informatiques.
+	\item communication  : connexions virtuelles entre des processus, des utilisateurs et d'autres systèmes informatiques.
 	\item programmes applicatifs.
 \end{itemize}
 
@@ -94,7 +94,7 @@ Ce sont des programmes qui fournissent un environnement pour le développement e
 
 La structure interne des OS varie très fort. On commence par définir les buts et les spécifications, qui sont conditionnés par le choix du hardware et du type de système. On distingue les buts des utilisateurs (l'OS doit être convénient à utiliser, à aborder, fiable, sûr et rapide) des buts du système (facile à designer, à implémenter et à maintenir, flexible, fiable, sans erreurs et efficace).
 
-Un principe important est de séparer les polices (déterminent ce qui sera fait) des mécanismes (détermine comme faire quelque chose), ce qui permet une grande flexibilité si les décisions de police doivent changer.
+Un principe important est de séparer les polices (déterminent ce qui sera fait) des mécanismes (détermine comment faire quelque chose), ce qui permet une grande flexibilité si les décisions de police doivent changer.
 
 	\subsection{Approche par couche}
 	
@@ -135,6 +135,8 @@ Un principe important est de séparer les polices (déterminent ce qui sera fait
 		\item[+] plus sécurisé
 		\item[-] overhead pour les communications entre l'espace utilisateur et l'espace kernel
 	\end{itemize}
+	
+	Il y a un retrait du kernel de tous les composants non-essentiels, qui sont implémentés comme des programmes systèmes ou utilisateurs. Les programmes clients et les services n'interagissent pas directement avec le noyau, mais communiquent par envoi de messages avec le microkernel.
 	
 	Exemple de Mac OS X :
 	

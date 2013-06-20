@@ -19,7 +19,7 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 
 	\section{Démarrage d'un ordinateur}
 	
-	Au lancement de la machine, un programme de boostrap est chargé. Il se trouve initialement dans de la ROM ou de l'EPROM (aussi appelé firmware). Il initialise tous les aspects du système, notamment il charge le noyau et lance son exécution.
+	Au lancement de la machine, un programme de bootstrap est chargé. Il se trouve initialement dans de la ROM ou de l'EPROM (aussi appelé firmware). Il initialise tous les aspects du système, notamment il charge le noyau et lance son exécution.
 	
 	Pour des OS récents, il peut arriver que la ROM ne soit pas suffisante pour l'initialisation complète du système. Dès lors, la ROM pointe vers du code stocké sur le disque qui permet de le faire.
 	
@@ -29,18 +29,18 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 	
 	Il y a ainsi une compétition entre le CPU et les périphériques pour l'utilisation de la mémoire ; ceux-ci s'exécutent de manière concurrente.
 	
-	Chaque contrôleur de périphérique prend en charge un périphérique particulier et possède un buffer local. Ainsi le CPU peut déplacer des données de/vers la RAM vers/dans ces buffers locaux. Les opérations I/O sont celles qui se produisent du périphérique vers le buffer local du contrôleur. Les contrôleur informent le CPU de la fin de l'opération par une interruption.
+	Chaque contrôleur de périphérique prend en charge un périphérique particulier et possède un buffer local. Ainsi le CPU peut déplacer des données de/vers la RAM vers/de ces buffers locaux. Les opérations I/O sont celles qui se produisent du périphérique vers le buffer local du contrôleur. Les contrôleur informent le CPU de la fin de l'opération par une interruption.
 	
 	\section{Interruptions}
 	
-	Une interruption transfère le contrôle vers une routine d'interruption en utilisant le vecteur d'interruption, qui contient les adresses de toutes les routines d'interruption.
+	Une interruption transfère le contrôle vers une routine d'interruptions en utilisant le vecteur d'interruption, qui contient les adresses de toutes les routines d'interruption.
 	
 	Lors d'une interruption :
 	
 	\begin{enumerate}
-		\item il y a une sauvegarde du contexte (registres, program counter (PC), etc). Cela est fait en hardware et non en software, sinon on utiliserait un programme qui utilise le PC et les registres.
+		\item il y a une sauvegarde du contexte (registres, program counter (PC), etc). Cela est fait en hardware et non en software, sinon on utiliserait un programme qui utilise le PC et les registres (que l'on doit justement sauver).
 		\item chargement de l'interrupt handler
-		\item désactivation des interruptions, ce qui permet d'éviter de perdre une interruption
+		\item désactivation des interruptions. Cela est fait après les étapes 1 et 2 , ce qui permet d'éviter de perdre une interruption plus prioritaire
 		\item exécution du handler
 	\end{enumerate}
 	
@@ -50,10 +50,8 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 	
 		\subsection{Gestion d'une interruption}
 		
-		Ce sont les handler d'interruption qui sauvegardent le PC et les registres plutôt qu'un contrôleur, car ces opérations sont plus rapides en software qu'en hardware, parce que le handler va sauver uniquement les registres utilisés quand du hardware va tout sauver.
+		Ce sont les handlers d'interruption qui sauvegardent le PC et les registres plutôt qu'un contrôleur, car ces opérations sont plus rapides en software qu'en hardware, parce que le handler va sauver uniquement les registres utilisés quand du hardware va tout sauver.
 		
-		\note{Contradiction : la sauvegarde du contexte se fait en hardware ou en software ? Software pour les interruptions et hardware pour un scheduling ?}
-	
 	Deux types d'interruption peuvent se produire :
 	
 	\begin{itemize}
@@ -71,7 +69,7 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 	
 		\subsection{DMA - Direct Memory Access}
 		
-		Ce composant est utilisé pour permettre aux périphériques I/O rapides de transmettre de l'information à de la mémoire plus vite. Les données provenant des buffers des contrôleurs peuvent être transférée directement en mémoire sans l'intervention du CPU. Une interruption est générée par bloc, plutôt qu'une interruption par byte.
+		Ce composant est utilisé pour permettre aux périphériques I/O rapides de transmettre de l'information à de la mémoire plus vite. Les données provenant des buffers des contrôleurs peuvent être transférées directement en mémoire sans l'intervention du CPU. Une interruption est générée par bloc, plutôt qu'une interruption par byte.
 		
 	\section{Structure de stockage}
 	
@@ -110,11 +108,11 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 	
 	\dessin{90}
 	
-	Il y a deux types de systèmes : l'asymetric multiprocessing et le symetric multiprocessing. Exemple d'architecture multiprocessing symétrique :
+	Il y a deux types de systèmes : l'asymetric multiprocessing et le symetric multiprocessing.
 	
 	\dessin{91}
 	
-	A cause du temps de propagation, il est plus rapide et sûr d'envoyer des données bit à bit qu'en parallèle, car les lignes sont de longueur différentes, ce qui nécessite un mécanisme de synchronisation.
+	A cause du temps de propagation, il est plus rapide et sûr d'envoyer des données bit à bit qu'en parallèle, car les lignes sont de longueurs différentes, ce qui nécessite un mécanisme de synchronisation.
 	
 	wire $\neq$ transmission (on doit tenir compte de l'endroit où se trouvent les données).
 	
@@ -135,11 +133,11 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 		
 	\section{Structure d'un OS}
 	
-	Le multiprogramming est nécessite pour être efficace. En effet, un seul utilisatuer ne peut pas garder le CPU et les périphériques I/O occupés tout le temps. Le multiprogramming organise les jobs (code et données) de façon à ce que le CPU ait toujours quelque chose à exécuter. Ainsi, un ensemble de jobs est gardé en mémoire et l'un d'entre eux est sélectionné et exécuté via du job scheduling. Quand un job doit attendre (par exemple pour une requête I/O), l'OS passe à un autre job.
+	Le multiprogramming est nécessaire pour être efficace. En effet, un seul utilisateur ne peut pas garder le CPU et les périphériques I/O occupés tout le temps. Le multiprogramming organise les jobs (code et données) de façon à ce que le CPU ait toujours quelque chose à exécuter. Ainsi, un ensemble de jobs est gardé en mémoire et l'un d'entre eux est sélectionné et exécuté via du job scheduling. Quand un job doit attendre (par exemple pour une requête I/O), l'OS passe à un autre job.
 	
 	Le timesharing (ou multitasking) est une extension logique dans laquelle le CPU passe d'un job à l'autre si fréquemment que les utilisateurs peuvent interagir avec tous les jobs en même temps, ce qui donne une interactivité. Le temps de réponse doit ainsi être inférieur à une seconde.
 	
-	Chaque utilisateur a eu moins un programme en cours d'exécution en mémoire, c'est un processus. Si plusieurs jobs sont prêts à être lancés, on utilise du CPU scheduling. Si les processus ne rentrent pas tous en mémoire, on est les swap. La mémoire virtuelle permet l'exécution de processus qui ne sont pas complètement en mémoire.
+	Chaque utilisateur a eu moins un programme en cours d'exécution en mémoire, c'est un processus. Si plusieurs jobs sont prêts à être lancés, on utilise du CPU scheduling. Si les processus ne rentrent pas tous en mémoire, on les swap. La mémoire virtuelle permet l'exécution de processus qui ne sont pas complètement en mémoire.
 	
 		\subsection{Opérations d'un OS}
 		
@@ -153,7 +151,7 @@ Le noyau est le seul programme qui tourne tout le temps. Tous les autres program
 		
 		\subsection{Gestion de processus}
 		
-		Un processus est un programme en cours d'exécution, c'est l'unité de travail dans le système. Le programme est une entité passive, tandis que le processus est une entité active.
+		Un processus est un programme en cours d'exécution, c'est l'unité de travail dans le système. Le programme est une entité passive (ce n'est qu'une suite d'instructions) , tandis que le processus est une entité active.
 		
 		Les processus ont besoin de ressources pour accomplir leurs tâches : CPU, mémoire, fichiers, I/O et des données d'initialisation. La terminaison d'un processus nécessite la réclamation des ressources réutilisables.
 		
@@ -179,7 +177,7 @@ Le gestionnaire de mémoire doit déterminer ce qui doit être en mémoire (donn
 
 \begin{itemize}
 	\item le suivi des parties de la mémoire qui sont en train d'être utilisées et par qui
-	\item la décision de quels processus (ou parties de processus) et quelles données sont mise en ou hors mémoire
+	\item la décision de quels processus (ou parties de processus) et quelles données sont mises en ou hors mémoire
 	\item allouer et désallouer de la mémoire quand c'est nécessaire
 \end{itemize}
 
@@ -210,7 +208,7 @@ Les activités de l'OS sont de
 	\item ordonnancer le disque
 \end{itemize}
 
-Certains types de stockage n'ont pas besoin d'être rapide, par exemple les stockages optiques ou magnétiques. Ils doivent cependant toujours être managés. Ils varient du WORM (write-once, read-many-times) et RW (read-write).
+Certains types de stockage n'ont pas besoin d'être rapides, par exemple les stockages optiques ou magnétiques. Ils doivent cependant toujours être managés. Ils varient du WORM (write-once, read-many-times) et RW (read-write).
 
 \dessinS{94}{0.35}
 

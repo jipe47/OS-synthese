@@ -25,7 +25,7 @@ Chaque détail d'un fichier est stocké dans un File Control Block (FCB). Il con
 	\item des dates (création, accès, écriture)
 	\item le propriétaire, le groupe, l'ACL (access control list)
 	\item la taille du fichier
-	\item les blocs de données du fichier, ou un pointer vers ces blocs
+	\item les blocs de données du fichier, ou un pointeur vers ces blocs
 \end{itemize}
 
 \section{Structures en mémoire}
@@ -36,10 +36,7 @@ Structures en mémoire lors de (a) l'ouverture d'un fichier et (b) d'une lecture
 
 \section{Systèmes de fichiers virtuels}
 
-Les systèmes de fichiers virtuels (VFS) offrent une approche orientée objet pour implémenter les systèmes de fichiers. Cela permet au système d'appeler une même interface (l'API) pour plusieurs types de systèmes de fichier. 
-
-\note{Pas compris (11.9): "The API is to the VFS interface, rather than any specific type of file system."}
-
+Les systèmes de fichiers virtuels (VFS) offrent une approche orientée objet pour implémenter les systèmes de fichiers. Cela permet au système d'appeler une même interface (l'API) pour plusieurs types de systèmes de fichier. Cette API est préférée plutôt qu'une interface spécifique à chaque système de fichiers.
 \dessinS{72}{0.45}
 
 \section{Implémentation d'un répertoire}
@@ -107,10 +104,17 @@ Deux structures sont généralement utilisées :
 		\item ... mais overhead à cause du bloc d'index.
 		\item[-] nécessité d'avoir une table d'index
 		\item[-] perdre le bloc index fait perdre tout le fichier. Solution : le répliquer
-		\item[-] il y a une limitation du nombre de pointeurs dans un bloc, ce qui limite la taille d'un fichier. Solution : chaînage de blocs, ou bien (plus performant) utiliser un arbre de blocs pour former un Btree, avec un bloc qui pointe d'autres blocs.
+		\item[-] il y a une limitation du nombre de pointeurs dans un bloc, ce qui limite la taille d'un fichier. Solutions : 
+		
+		\begin{itemize}
+			\item chaînage de blocs
+			\item arbre de blocs pour former un Btree
+			\item structure combinée
+		\end{itemize}				
+		
 	\end{itemize}
 	
-	L'indexage peut se faire sur plusieurs niveaux.
+	Exemple d'indexage sur plusieurs niveaux.
 	
 	\dessin{76}
 	
@@ -126,10 +130,10 @@ Deux structures sont généralement utilisées :
 	
 	Nombre de blocs nécessaires :
 	
-	$$\text{(nombre de bit par mot) } \times \text{ nombre de mots de valeur 0) } + \text{ offset du premier bit à 1}$$
+	$$\text{(nombre de bit par mot) } \times \text{ (nombre de mots de valeur 0) } + \text{ offset du premier bit à 1}$$
 	
 	\begin{itemize}
-		\item[+] facilité d'avoir de l'espace continue
+		\item[+] facilité d'avoir de l'espace continu
 		\item[+] Le parcours du vecteur est rapide. Il suffit de trouver le premier bit différent de 1, or certains processeurs disposent d'une instruction spéciale qui permet de récupérer rapidement l'index du premier bit à 1 dans un byte.
 		\item[-] besoin de plus d'espace
 		\item[-] ce vecteur doit être en mémoire et sur un disque
@@ -170,7 +174,7 @@ Deux structures sont généralement utilisées :
 	
 	\subsection{Counting}
 	
-	C'est similiaire à de la compression : on stocke le départ d'un espace libre continu et on y attache sa taille
+	C'est similaire à de la compression : on stocke le départ d'un espace libre continu et on y attache sa taille
 	
 \section{Efficacité et performances}
 
@@ -185,7 +189,7 @@ Les performances peuvent être augmentée grâce à
 
 \begin{itemize}
 	\item un cache du disque ; un espace de la mémoire serait réservé à la conservation de blocs qui sont souvent accédés.
-	\item free-behind et read-ahead ; techniques pour optimiser l'accès séquentiel
+	\item free-behind (on supprime une page du cache lorsque la prochaine page est demandée) et read-ahead (on met en cache plus d'une page) ; techniques pour optimiser l'accès séquentiel
 	\item la réservation d'une partie de la RAM pour être un disque virtuel (ou RAM disk).
 \end{itemize}
 
@@ -234,19 +238,20 @@ Un secteur est un bloc physique.
 	
 	\subsection{Attachement du disque}
 	
+	\subsubsection{Attachement local}
 	Les hôtes de stockage sont accédés à travers des ports I/O en utilisant des bus I/O.
 	
 	Le SCSI est un bus qui peut compter jusqu'à 16 périphériques par câble. Un SCSI initiator lance une requête qui est servie par des SCSI targets. Chaque target peut avoir jusqu'à 8 unités logiques (disques attachés au contrôleur du périphérique).
 	
 	Le FC est une architecture sérielle à haute vitesse. [11.38]
 	
-	\subsection{NAS}
+	\subsubsection{NAS}
 	
 	Un NAS (network-attached storage) est un stockage disponible à travers un réseau plutôt qu'avec une connexion locale (telle qu'un bus). NFS et CIFS sont les protocoles généralement utilisés. L'implémentation se fait via des remote procedure calls (RPCs) entre l'hôte et le périphérique de stockage. Il y a également le protocole iSCSI qui utilise le protocole IP pour transporter le protocole SCSI.
 	
 	\dessinS{81}{0.3}
 	
-	\subsection{Réseau de stockage}
+	\subsubsection{Réseau de stockage}
 	
 	Les réseaux de stockage (Storage Area Network) sont communs dans des environnements de stockage large. Plusieurs hôtes sont attachés à plusieurs matrices de stockage, ce qui permet une grande flexibilité.
 	
