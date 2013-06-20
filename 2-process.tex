@@ -1,0 +1,182 @@
+\chapter{Les processus}
+
+Un OS peut faire tourner une variété de programmes. On a des systèmes batch où les programmes, appelés jobs, sont lancés sans aucune autre intervention, et les systèmes time-shared (ou online), qui sont eux interactifs.
+
+Un processus est un programme en cours d'exécution, de manière séquentielle. Il inclut
+
+\begin{itemize}
+	\item un PC (programme counter), qui permet de savoir où en est l'exécution. Dans une machine, il y a un PC par core (ou plus si les cores sur multipipelinés).
+	\item une pile (stack), afin de permettre des appels de fonctions (pour sauver les arguments, placer les arguments et mettre l'adresse de retour). La partie du stack lié à un appel de fonction est la stack frame.
+	\item une section de données
+\end{itemize}
+
+\dessinS{9}{0.3}
+
+Un processus peut avoir différents états :
+\begin{itemize}
+	\item new : le processus est en train d'être créé
+	\item running : les instructions sont en train d'être exécutées
+	\item waiting : le processus attend qu'un évènement se produise
+	\item ready : le processus attend l'usage du processeur
+	\item terminated : le processus a fini son exécution
+\end{itemize}
+
+\dessin{10}
+
+Toutes les informations associées à un processus sont stockées dans un PCB (process control block). Il permet de savoir ce qu'utilise le processus, notamment lorsqu'il se termine. Sont stockés :
+
+\begin{itemize}
+	\item l'état du processus
+	\item le program counter
+	\item les registres du CPU
+	\item les infos de scheduling du CPU
+	\item les infos de gestion de mémoire
+	\item les infos de compte
+	\item les infos de status I/O
+\end{itemize}
+
+Toutes ces informations sont stockées/chargées lorsqu'un processus perd/obtient l'accès au CPU, dans le cadre d'un changement de contexte. ce changement est hardwired et donc optimisé pour que cela se fasse en un minimum de cycles.
+
+Il y a plusieurs listes de processus dans le noyau ; ceux-ci passe d'une liste à l'autre en fonction de leur évolution :
+
+\begin{itemize}
+	\item job queue : l'ensemble de tous les processus du système
+	\item ready queue : l'ensemble des processus résidant en mémoire, prêts et en attente d'être exécutés
+	\item device queues : l'ensemble des processus attendant un périphérique I/O. Il y a une file par device.
+\end{itemize}
+
+\dessin{11}
+
+\section{Schedulers}
+
+Il y a deux schedulers :
+
+\begin{itemize}
+	\item long-term scheduler (ou job scheduler) : sélectionne les processus qui seront placés dans la ready queue. Il est invoqué irrégulièrement (secondes, minutes) (donc peut se permettre d'être lent) et contrôle le degré de multiprogramming.
+	\item short-term scheduler (ou CPU scheduler): sélectionne quels processus doivent être exécutés et alloue le CPU. Il est appelés très fréquemment (millisecondes), donc doit être très rapide et efficace.
+\end{itemize}
+
+Dans ce contexte, on peut définir le jiffy comme le temps entre deux interruptions d'horloge. Il est en général de 10ms (4ms sous Linux).
+
+Certains OS n'ont pas de scheduler à long terme. Du coup, ils gardent tout en mémoire ; il y a donc une limite sur le nombre de processus résidant en mémoire.
+
+\note{$\rightarrow$ pourquoi cela est-il acceptable ?}
+
+\dessin{12}
+
+S'il y a trop de processus et qu'il y a du swap (des PCBs et de toute la mémoire associée), tout l'OS va ralentir car le disque est lent.
+
+Les processus peuvent être limités de deux façons différentes :
+
+\begin{itemize}
+	\item I/O-bound : ils passent plus de temps à des opérations d'I/O qu'à des calculs, ce qui donne beaucoup de petits CPU bursts
+	\item CPU-bound : ils passent plus de temps à faire des calculs, ce qui donne des long CPU bursts.
+\end{itemize}
+
+Idéalement, il faut un mix d'IO-bound (si tous les processus l'étaient, la ready queue serait souvent vide) et de CPU-bound (la ready queue serait importante) pour une bonne utilisation des ressources. Toutefois, pour un système, on préfèrera des processus I/O-bound, car des processus CPU-bound ont tendance à réduire l'interactivité.
+
+
+\section{Création de processus}
+
+Des processus parents créent des processus enfants, qui à leur tour créent des processus, ce qui forme un arbre. Chaque processus est identifié par un identifiant, le PID.
+
+Il y a un partage des ressources : les enfants se partagent un sous-ensemble des ressources du parent.
+
+\note{$\rightarrow$ Parent and children share all resources but parent and child share no resources (? [3.18])}
+
+Au niveau de l'exécution, les enfants et le parent s'exécutent simultanément, mais le parent attend que ses enfants se terminent avant de se terminer lui-même.
+
+Lors de la création d'un enfant, l'address space du parent est dupliqué et l'enfant exécute un programme qui est chargé dedans. Sous UNIX, fork crée un nouveau processus et exec remplace l'espace mémoire du processus par un nouveau programme.
+
+\dessin{13}
+
+\section{Terminaison d'un processus}
+
+Une fois qu'un processus a exécuté sa dernière instruction, il va demander à l'OS de le supprimer (exit). Les données de sortie sont transmises au parent (via wait), ensuite les ressources du processus sont désallouées par l'OS.
+
+Les parent peuvent terminer l'exécution de leurs enfants avec abort, par exemple s'ils dépassent la quantité de ressources allouées ou s'ils n'ont plus de raison d'être.
+
+Si un parent se termine, certains OS ne permettent pas que les enfants continuent de tourner, du coup ils sont également terminés. Sinon, les enfants deviennent des processus zombies. Le problème dans ce cas est qu'ils sont hors de l'arbre des processus tout en consommant des ressources.
+
+\section{Communication entre les processus}
+
+Les processus d'un système peuvent être indépendants ou coopérer. Dans ce cas, un processus peut affecter ou être affecté par les autres, notamment au niveau de la mémoire partagée. Il y a plusieurs raisons à l'existence d'une coopération :
+
+\begin{itemize}
+	\item partage d'informations
+	\item speedup des calculs
+	\item modularité
+	\item par que c'est plus convénient
+\end{itemize}
+
+Des processus coopérants ont besoin de communication interprocessus (inteprocess communication, IPC). Il y a deux modèles différents d'IPC : (a) l'envoi de messages et (b) la mémoire partagée.
+
+\dessin{14}
+
+	\subsubsection{Envoi de messages}
+	
+	C'est un mécanisme qui permet de ne pas devoir gérer des variables partagées. Deux opérations sont possibles : send et receive.
+	
+	Si deux processus souhaitent communiquer, ils doivent établir un lien de communication entre eux et ensuite s'échanger des messages avec send et receive.
+	
+	L'implémentation d'un tel moyen de communication peut être physique (mémoire partagée, bus) ou logique (propriétés logiques).
+	
+	Beaucoup de questions surviennent pour l'implémentation de ces liens :
+	
+	\begin{itemize}
+		\item How are links established?
+		\item Can a link be associated with more than two processes?
+		\item How many links can there be between every pair of communicating processes?
+		\item What is the capacity of a link?
+		\item Is the size of a message that the link can accommodate fixed or variable?
+		\item Is a link unidirectional or bi-directional?
+	\end{itemize}
+
+	Il existe deux types de communication : direct et indirect.
+	
+	\paragraph{Communication directe} Les processus doivent se nommer explicitement : send(P, message) et receive(Q, message). Les propriétés du lien de communication sont que
+	
+	\begin{itemize}
+		\item le lien est établi automatiquement
+		\item un lien est associé à exactement une paire de processus communicant
+		\item entre chaque paire, il n'y a qu'un et un seul lien
+		\item le lien peut être unidirectionnel, mais généralement il est bi-directionnel
+	\end{itemize}
+	
+	\paragraph{Communication indirecte} Les messages sont envoyés et reçus à partir de mailboxes (connus sous le nom de port). Chaque mailbox a un identifiant unique et les processus ne peuvent communiquer que s'ils partagent une mailbox. Le lien de communication a les propriétés suivantes :
+	
+	\begin{itemize}
+		\item le lien est établi uniquement si les processus partagent une mailbox
+		\item un lien peut associer plusieurs processus
+		\item chaque paire de processus peut avoir plusieurs liens de communication
+		\item les liens peuvent être unidirectionnels ou bidirectionnels.
+	\end{itemize}
+	
+	On a comme opérations la création d'une mailbox, l'envoi et la réception de messages à travers une mailbox et la destruction de la mailbox. Les primitives sont alors send(A, message) et receive(A, message), où A est une mailbox.
+	
+	Supposons que $P_1$, $P_2$ et $P_3$ partagent une mailbox $A$. $P_1$ envoie un message et $P_2$ et $P_3$ appellent receive. Qui récupère le message ? Diverses solutions existent :
+	
+	\begin{itemize}
+		\item restreindre un lien à l'association d'au plus 2 processus
+		\item permettre à uniquement un seul processus d'effectuer l'opération de réception
+		\item permettre au système de choisir arbitrairement le récepteur. L'expéditeur sera alors informé de qui a reçu le message.
+	\end{itemize}
+	
+	
+	\subsubsection{Synchronisation}
+	
+	L'envoi de messages peut être bloquant ou non-bloquant.
+	
+	Bloquer l'envoi de message est considéré comme synchrone : l'expéditeur est bloqué jusqu'à ce que le message soit reçu et inversement le récepteur est bloqué tant que le message n'a pas été envoyé.
+	
+	Ne pas bloquer l'envoi de message est considéré comme asynchrone : l'expéditeur envoie le message et continue son exécution, tandis que le récepteur obtient un message valide ou null.
+	
+	\subsubsection{Buffering}
+	
+	Une file de message est attachée à chaque lien. Trois politiques sont possibles :
+	
+	\begin{itemize}
+		\item capacité 0 : aucun message. L'expéditeur doit alors attendre le récepteur (rendezvous)
+		\item capacité limitée : au maximum $n$ messages peuvent être envoyés, l'expéditeur doit alors attendre si le lien est plein.
+		\item capacité illimitée : l'expéditeur n'attend jamais.
+	\end{itemize}

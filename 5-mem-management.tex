@@ -1,0 +1,272 @@
+\chapter{Gestion de la mémoire}
+
+Avant qu'ils ne démarrent, les programmes doivent être rapatriés du disque vers la mémoire et placés dans un processus qui va l'exécuter. La mémoire principale ($\approx$ 100 cycles) et les registres (1 cycle) sont les seules unités de stockage que le CPU peut accéder directement. Afin de ne pas devoir effectuer de trop nombreux aller-retours entre les registres et la RAM, on place une cache entre les deux.
+
+Il est nécessaire de protéger la mémoire des processus, c'est-à-dire qu'il faut empêcher qu'un programme ait écrire dans la mémoire d'autres programmes.
+
+Chaque programme possède une adresse de base (qui aura pour adresse virtuelle 0) et une limite, qui sont stockées dans des registres et qui définissent l'espace d'adresses logiques. Vérifier une adresse logique doit être très rapide car elle est effectuée à chaque accès mémoire, c'est pour cela que c'est du hardware qui s'en charge.
+
+\dessin{24}
+
+\section{Liaison des instructions et des données à la mémoire}
+
+L'address binding des instructions et des données à des adresses mémoires peut se produire à trois étapes différentes :
+
+\begin{itemize}
+	\item à la compilation (compile time) : si la localisation de la mémoire est connue d'avance, du code absolu peut être généré. Il faut recompiler le code si l'adresse de départ change.
+	\item au chargement (load time) : il faut générer du relocatable code si la localisation mémoire n'est pas connue à la compilation. Par contre, une fois chargé, le programme doit rester en place.
+	\item à l'exécution (execution time) : la liaison est reportée jusqu'à l'exécution si le processus peut être déplacé durant son exécution d'un segment de mémoire à un autre. Un support hardware est nécessaire pour le mapping des adresses (registres de base et de limite).
+\end{itemize}
+
+\dessinS{25}{0.55}
+
+	\subsection{Adresses logiques et physiques}
+	
+	Les adresses logiques (ou virtuelles) sont générées par le CPU et sont utilisées pour séparer l'espace d'adresses physiques. Une adresse physique est l'adresse vue par l'unité de mémoire.
+	
+	Les adresses physiques et logiques sont ainsi les mêmes pour les schémas de liaison d'adresses à la compilation et au chargement, mais elles diffèrent à l'exécution.
+	
+	La traduction d'une adresse virtuelle en une adresse physique est effectuée par le MMU (Memory-Management Unit). La valeur du relocation register est ajoutée à chaque adresse générée par le processus utilisateur au moment où elle est envoyée en mémoire. Ainsi, l'utilisateur utilise des adresses logiques/virtuelles et n'est jamais confronté à des adresses physiques. Cela pourrait être le cas avec un schéma de liaison d'adresses à la compilation ou au chargement, mais il ne le saura pas.
+	
+	\dessinS{26}{0.35}
+	
+	\subsection{Chargement dynamique (dynamic loading)}
+	
+	Une routine n'est chargée que si elle est appelée, ce qui permet une meilleure utilisation de la mémoire vu qu'une routine non utilisée n'est jamais chargée. C'est aussi utile dans le cas où de larges portions de code ne sont utilisées qu'infréquemment. Il n'y a pas de support particulier nécessaire pour l'OS, ce comportement est implémenté à travers le design du programme.
+	
+	\subsection{Liaison dynamique (dynamic linking)}
+	
+	L'étape de linkage est postposée jusqu'à l'exécution du programme, où on ne charge que ce dont on a besoin.
+	
+	Une petite portion de code, le stub, est utilisé pour localiser la routine appropriée de la librairie en mémoire. Il se remplace alors par l'adresse de la routine et l'exécute, après que l'OS vérifié que la routine est dans l'espace d'adresses du processus.
+	
+	Le dynamic linking est particulièrement utile pour les librairies, qui peuvent être partagées entre plusieurs programmes (shared libraries). On peut également avoir différentes versions de la même librairie dynamique au même moment dans le système.
+
+\section{Swapping}
+
+Un processus peut être swappé temporairement hors de la mémoire dans une unité de stockage et rapatrié en mémoire pour continuer son exécution.
+
+L'unité de stockage est généralement un disque suffisamment grand pour accueillir une copie de la mémoire de tous les utilisateurs. Elle doit également permettre un accès direct à des images de mémoire.
+
+Roll out, roll in : variante du swap utilisée pour les algorithmes d'ordonnancement avec une priorité. Les processus de basse priorité sont swappés pour que les processus de plus haute priorité soient chargés et exécutés.
+
+La plupart du temps de swapping est engendrée par le temps de transfert, qui est proportionnelle à la quantité de mémoire swappée.
+
+Beaucoup de variantes du swapping peuvent être trouvées sur plusieurs systèmes différents. En général, le système maintient une liste similaire à une ready queue, mais qui contient des processus qui ont leur image mémoire sur le disque.
+
+\begin{itemize}
+	\item swap out (of memory) : action d'extraire un processus hors de la mémoire.
+	\item swap in (memory) : action de récupérer un processus du disque et de le placer dans la mémoire.
+\end{itemize}
+
+
+\section{Allocation contiguë}
+
+La mémoire principale est généralement partitionnée en deux :
+
+\begin{itemize}
+	\item la mémoire basse, qui comprend l'OS
+	\item la mémoire haute, qui entrepose les processus utilisateurs
+\end{itemize}
+
+Des registres de relocalisation (relocation registers) sont utilisés pour protéger les processus utilisateurs les uns des autres et d'empêcher qu'il y ait des modifications dans le code et les données de l'OS :
+
+\begin{itemize}
+	\item base register : contient la valeur de la plus petite adresse physique
+	\item limit register : contient l'intervalle d'adresses logiques ; chaque adresse virtuelle/logique doit être plus petite que ce registre
+	\item le MMU mappe les adresses logiques dynamiquement.
+\end{itemize}
+
+\dessinS{27}{0.35}
+
+Quand un processus arrive (de retour du disque ou nouvellement créé), il doit être placé en mémoire. L'OS va allouer de la mémoire située dans un "trou" (partition/bloc de mémoire disponible) suffisament large et l'y placer. L'OS stocke ainsi des informations sur les partitions allouées et celles qui sont libres.
+
+Le problème est que les partitions libres sont éparpillées en mémoire, et qu'au final on peut arriver à des trous qui sont trop petits que pour pouvoir être utilisés. Une première mesure est de les fusionner quand ils sont adjacents.
+
+\dessinS{28}{0.35}
+
+	\subsection{Problème d'allocation d'espace dynamique}
+	
+	On cherche dont à satisfaire une requête de taille $n$ à partir d'une liste de partitions libres. Plusieurs stratégies existent :
+	
+	\begin{itemize}
+		\item first-fit : on utilise la première partition qui convient
+		\item best-fit : on utilise la plus petite partition qui est suffisamment grande, ce qui implique de parcourir entièrement la liste (sauf si elle est triée selon la taille des partitions). Cela produit des plus petites partitions.
+		
+		\item worst-fit : on utilise la plus grande partition, ce qui implique aussi un parcours entier de la liste, mais produit des plus grandes partitions libres.
+	\end{itemize}
+	
+	Les stratégies first-fit et best-fit sont meilleures que worst-fit en terme de vitesse et d'utilisation d'espace.
+	
+	\subsection{Fragmentation}
+	
+	Il existe deux types de fragmentation :
+	
+	\begin{itemize}
+		\item la fragmentation externe : l'espace mémoire existe pour satisfaire une requête, mais n'est pas continu
+		\item la fragmentation interne : la mémoire allouée peut être plus petite que la mémoire demandée. La différence de ces deux mémoires est interne à la mémoire du processus mais n'est pas utilisée.
+	\end{itemize}
+	
+	On peut réduire la fragmentation externe avec une compaction : on rassemble toutes les partitions libres en un seul bloc. Cela est possible que si la relocation est dynamique et est faite à l'exécution.
+	
+	\note{Je ne pige pas la fin de cette sous-section.}
+	
+	On a cependant un problème d'I/O : si un programme est déplacé, le buffer qui lui était attribué n'est plus utilisable. On a alors deux solutions :
+	
+	\begin{enumerate}
+		\item ne pas bouger les programmes en attente d'IO, mais cela réduit l'efficacité
+		\item le device driver écrit dans la mémoire de l'OS, le noyau va alors transmettre les données à l'espace utilisateur. On a alors deux écritures pour toute opération I/O, elles sont plus lentes.
+	\end{enumerate}
+	
+\section{Paging}
+
+L'espace d'adresses physiques d'un processus ne peut pas être continu. On va alors 
+
+\begin{itemize}
+	\item diviser la mémoire physique en blocs de taille fixes, appelés frame (d'une taille de puissance 2, entre 512k et 8 192 bytes)
+	\item diviser la mémoire logique en blocs de la même taille, appelés pages
+\end{itemize}
+
+On suit toutes les frames libres. Dès lors, lorsqu'on lance un programme de $n$ pages, il faut trouver $n$ frames libres et charger le programme. Chaque programme possède sa propre table des pages.
+
+Les pages sont continues en mémoire virtuelle, mais par contre les frames qui leurs sont associées ne le sont pas. Il est alors nécessaire de mettre en place une table de pages pour traduire les adresses logiques en adresses physiques.
+
+Le mécanisme de paging conduit nécessairement à de la fragmentation interne, mais permet de diminuer fortement la fragmentation externe.
+
+	\subsection{Traduction d'adresses}
+	
+	Une adresse générée par le CPU est divisée en deux :
+	
+	\begin{itemize}
+		\item le numéro de page (page number, $p$), qui est utilisé comme index dans la table des pages (contenant l'adresse de base de chaque page en mémoire physique)
+		\item le décalage de page (page offset, $d$), qui est combiné à l'adresse de base pour définir l'adresse mémoire physique qui doit être envoyée au périphérique de stockage.
+	\end{itemize}
+	
+	\dessin{29}
+	
+	On a alors des pages de taille $2^n$ et un espace mémoire de taille $2^m$. Des puissances de $2$ permettent de simplifier les opérations de numéro de page et d'offset.
+	
+	\dessinS{30}{0.5}
+	
+	Exemple d'allocation de pages :
+	
+	\dessin{31}
+	
+	\subsection{Implémentation de la table des pages}
+	
+	La page table est gardée en mémoire principale. On a deux registres :
+	
+	\begin{itemize}
+		\item PTBR - Page-table base register : pointe la table
+		\item PRLR - Page-table length register : indique la taille de la table
+	\end{itemize}
+	
+	Avec ce schéma, chaque accès à une donnée ou une instruction requière deux accès mémoire :
+	
+	\begin{itemize}
+		\item un pour accéder à la table des pages
+		\item un pour les données/l'instruction
+	\end{itemize}
+	
+	Afin d'accélérer les opérations en diminuant les accès, on utilise un cache hardware à mémoire associative, appelé le TLB (translation look-aside buffer). Il y a un TLB par CPU. (TLB shootdown : communication entre des TLBs pour supprimer des entrées dans les autres TLBs.)
+	
+	Certains TLBs stockent dans chaque entrée un ASID (address-space identifier), qui identifie de manière unique chaque processus, afin d'offrir une protection de l'espace d'adresses pour ce processus.
+	
+	Un TLB est une mémoire physique associative, où la recherche est effectuée en parallèle. Cela la rend plus rapide, mais consomme plus d'énergie et nécessite plus de circuits, du coup les comparateurs prennent plus de place, ce qui fait que le TLB est au final assez petit. Ainsi, si $p$ est dans ce registre associatif, on récupère le $d$ associé, sinon on va chercher $d$ dans la table des pages en mémoire.
+	
+	\dessinS{32}{0.5}
+	
+	Supposons qu'une boucle utilise 10 pages et que le TLB peut en contenir 100, donc 10\% de sa capacité est utilisée. Que faire si le processus est déscheduled ? Il va falloir, à chaque changement de contexte, invalider tous les TBL, donc les vider, mais il est possible que l'union des TLBs de plusieurs processus puisse tenir dans un TLB.
+	
+	
+	\subsection{Temps d'accès effectif}
+	
+	Supposons que $\epsilon$ soit le temps nécessaire pour accéder au TLB et que chaque accès mémoire soit de 1 $\mu$s. Supposons également que le hit ratio (pourcentage de fois qu'un numéro de page est trouvé dans les TLBS (lié au nombre de registres)) est de $\alpha$. On a alors l'effective access time
+	
+	$$EAT = (1 + \epsilon) \alpha + (2 + \epsilon) (1 - \alpha)$$
+	
+	En cas de hit, on a donc $\epsilon +$ le temps d'un accès mémoire, tandis qu'un miss comporte $\epsilon$ et deux accès mémoires. Au final, on a
+	
+	$$EAT = 2 + \epsilon - \alpha$$
+	
+	\subsection{Protection de la mémoire}
+	
+	Un processus ne peut pas accéder à d'autres frames que les siennes, vu que ce sont les seules accessibles par sa table de pages.
+	
+	La protection de la mémoire est implémentée en associant un bit de protection à chaque frame. Ainsi, dans chaque entrée d'une page table, il y a un bit valid-invalid :
+	
+	\begin{itemize}
+		\item "valid" indique que la page associée est dans l'espace logique du processus, et que donc c'est une page légale
+		\item "invalid" indique que la page n'est pas dans l'espace logique du processus.
+	\end{itemize}
+	
+	\dessin{33}
+	
+	\subsection{Pages partagées}
+	
+	Du code peut être partagé entre plusieurs processus. Dans ce cas, il est disponible en read-only et doit être réentrant et doit apparaître au même emplacement de la mémoire logique de tous les processus.
+	
+	Quand du code ou des données sont privées, chaque processus possède sa propre copie à part, et dans ce cas les pages de ce code et des données peuvent se trouver n'importe où dans l'espace logique.
+	
+	Après un fork, les pages du fils pointent vers les pages du parent et un bit est set. On ne recopie que les parties du processus parent qu'on modifie ; il y a une copie des frames sur demande.
+	
+	\dessin{34}
+	
+	\subsection{Structure d'une table de page}
+	
+	On a un problème avec les systèmes disposant de beaucoup de mémoire : vu qu'une frame représente une petite portion (par ex 4kB), il y aura énormément de pages à stocker (pour 4Go de ram, il y en aura 1 million).
+	
+	\subsubsection{Paging hiérarchique}
+	
+	Avec une hiérarchie, on divise l'espace d'adresses en plusieurs tables de pages. Une technique simple est une table de pages à deux niveaux.
+	
+	\dessinS{35}{0.5}
+	
+	Ainsi, l'adresse virtuelle possède plusieurs numéros de pages, qui vont permettre d'aller rechercher l'adresse physique en consultant plusieurs tables de pages.
+	
+	\dessinS{36}{0.5}
+	
+	Une telle technique peut s'utiliser sur autant de niveaux que l'on veut, mais elle a ses limites. En effet, plus il y a de niveaux et plus il faut effectuer de recherches. Or ces recherches sont faites à chaque utilisation de la mémoire.
+	
+	\subsubsection{Tables de pages hashée}
+	
+	C'est la technique généralement utilisée pour des espaces d'adresses de plus de 32 bits. Le numéro de page est hashé dans une table de pages, avec un chaînage en cas de collision.
+	
+	\dessinS{37}{0.5}
+	
+	\subsubsection{Tables de pages inversée}
+	
+	Il y a une entrée pour chaque page de mémoire réelle, qui consiste en l'adresse virtuelle de la page stockée dans ce vrai emplacement mémoire, avec des informations sur le processus qui possède la page.
+	
+	Cela permet de diminuer la mémoire nécessaire pour stocker chaque page table, mais cela augmente le temps nécessaire pour procéder à une recherche. On peut utiliser une hash table pour limiter les recherches à une ou quelques unes entrées de la table des pages.
+	
+	\dessinS{38}{0.5}
+	
+	
+\section{Segmentation}
+
+Il s'agit d'un schéma de gestion de la mémoire qui supporte une vue utilisateur de la mémoire. Un programme est vu comme un ensemble de segments, des unités logiques du programme (programme principale, procédure, objet, stack, etc).
+
+\dessinS{39}{0.3}
+
+Une adresse va alors consister en un tuple (numéro de segment, offset). On aura les structures de données suivantes :
+
+\begin{itemize}
+	\item une table de segments, qui permet à partir d'un numéro de segment d'obtenir une adresse physique à deux dimensions. Chaque entrée de cette table possède
+	
+	\begin{itemize}
+		\item une base qui est l'adresse physique où le segment réside en mémoire
+		\item une limite pour la longueur du segment
+	\end{itemize}
+	
+	\item STBR - Segment-table base register : un registre qui pointe vers le début de la page en mémoire
+	\item STLR - Segment-table length register : un registre qui indique le nombre de segments utilisés par un programme. De ce fait, un segment $s$ est légal si $s < STLR$.
+\end{itemize}
+
+Un mécanisme de protection existe : chaque entrée dans la table de segments est associée un bit de validation (s'il vaut 0, le segment est illégal) et à des privilèges d'écriture, lecture et exécution.
+
+De la mémoire peut être partagée au niveau des segments. Vu que leur longueur est variable, l'allocation de mémoire pour les segments est un problème de stockage-allocation dynamique.
+
+\dessinS{40}{0.5}
+
+Si un segment est très gros, on peut utiliser un mécanisme de pages en dessous ; la table des segments associera un segment à une adresse virtuelle qu'il faudra convertir en adresse physique.

@@ -1,0 +1,113 @@
+\chapter{Threads}
+
+\dessinS{15}{0.3}
+
+Lorsqu'il y a un fork, il faut copier la mémoire du parent dans celle de l'enfant ; le plus simple est de dupliquer toute la table des pages. Pour augmenter les performances et ne pas tout recopier, la table du parent va être partagée avec celle de l'enfant. Les pages ne seront dupliquées que quand l'enfant voudra effectuer des écritures. Les lectures quant à elles ne nécessitent pas de copie.
+
+Quand un processus possède des threads, il a des tâches qui partagent sa mémoire. Chacun des threads a ses propres registres, stack et fil d'exécution. Créer un thread est beaucoup plus facile que créer un processus car il est beaucoup plus léger (il ne possède pas de liste de thread et ne doit pas s'insérer dans l'arbre des processus) ; la magnitude entre créer un processus et un thread est de l'ordre de 10. Par contre, un thread est toujours associé à un processus.
+
+Les bénéfices du multithreading :
+
+\begin{itemize}
+	\item capacité de réponse
+	\item partage des ressources
+	\item économie
+	\item scalabilité
+\end{itemize}
+
+Programmer un système multicoeur est beaucoup plus difficile pour les programmeurs : il faut diviser les activités, les balancer, diviser les données et tenir compte d'une éventuelle dépendance, et tester et débugger les programmes.
+
+L'hyperthreading d'un core est la duplication du datapath, du controlpath et de l'ALU : seul le cache est partagé. Dès lors, il y a un bon match entre l'hyperthreading et le multithreading, on peut même faire tourner deux threads sur le même core. C'est meilleur qu'avec plusieurs processus (multiprocessing)  car le cache hit rate est plus grand et parce que deux processus ont des espaces d'adresses différents.
+
+La gestion des threads se fait par des librairies au niveau utilisateur (POSIX avec Pthread, Win32 threads et Java threads). Le noyau aussi utilise des threads, par exemple pour prendre en charge les appels systèmes des utilisateurs.
+
+\section{Modèles de multithreading}
+
+	Quand un thread utilisateur fait appel à un service du noyau, il doit être pris en charge par un thread kernel. Plusieurs modèles existent.
+
+	\subsection{Many-to-One}
+	
+	Plusieurs threads users sont liées à un seul thread kernel (Solaris Green threads, GNU Portable Threads). Le problème est qu'on n'a qu'un seul thread qui tourne à la fois (s'il y a plus d'un thread utilisateur, pendant qu'un tourne, les autres attendent), donc c'est très peu performant.
+
+	\dessinS{16}{0.3}
+	
+	\subsection{One-to-One}
+	
+	Chaque thread user est mappé à un thread kernel (Windows, Linus, Solaris 9).
+	
+	\dessinS{17}{0.3}
+	
+	Le problème de la concurrence de threads utilisateurs est réglé, mais ici créer un thread en crée en fait deux. Vu que chaque thread consomme des ressources, il y a une limite dans le noyau (par un manque de descripteurs notamment). De plus, les threads kernel ne tournent pas tout le temps (seulement quand le thread utilisateur associé effectue un syscall), du coup des ressources sont réservées pour rien.
+	
+	\subsection{Many-to-Many}
+	
+	Plusieurs threads utilisateurs peuvent être mappés à plusieurs threads kernel (Solaris $>$ 9, Windows NT). Cela permet à l'OS de créer un nombre suffisant de threads kernel.
+	
+	\dessinS{18}{0.3}
+	
+	\subsection{Modèle à deux niveaux}
+	
+	C'est similaire au modèle many-to-many, si ce n'est qu'on permet à un thread user d'être lié à un thread kernel.
+	
+	\dessinS{19}{0.3}
+	
+\section{Librairies de thread}
+
+Des librairies fournissent une API permettant de créer et gérer des threads. Il y a deux manières de les implémenter :
+
+\begin{itemize}
+	\item une librairie entièrement dans l'espace utilisateur
+	\item une librairie au niveau du kernel supportée par l'OS
+\end{itemize}
+
+Pthreads est une librairie qui donne des threads au niveau utilisateur et kernel, avec une API standardisée POSIX. Elle est présente sous les systèmes UNIX (Solaris, Linux, Mac OS X).
+
+Les threads Java sont supportés par la machine virtuelle, qui généralement utilise le même modèle que ce que l'OS utilise.
+
+\section{Problèmes de threading}
+
+	\subsection{Sémantiques de fork et exec}
+	
+	Un thread qui appelle fork() peut soit créer un nouveau processus avec tous les threads, soit créer un nouveau thread équivalent.
+	
+	Lorsqu'un thread fait exec(), seul son code sera changé, car cela n'a pas de sens de modifier/supprimer les autres threads en modifiant le processus parent.
+	
+	\subsection{Annulation de threads}
+	
+	Supposons que l'on veuille terminer un thread avant qu'il ait terminé. Il y a en général deux approches :
+	
+	\begin{itemize}
+		\item une annulation asynchrone, qui termine le thread immédiatement. Le problème est qu'il pourrait y avoir une réservation de ressources (par exemple un fichier pourrait rester ouvert avec la mort d'un thread).
+		\item une annulation déférée, où le thread vérifie périodiquement s'il doit s'arrêter
+	\end{itemize}
+	
+	
+	\subsection{Gestion des signaux}
+	
+	Les signaux sont utilisés dans les systèmes UNIX pour notifier un processus qu'un évènement particulier s'est produit. Ainsi, un signal handler est utilisé pour traiter les signaux : le signal est généré par un évènement particulier, il est délivré à un processus et est traité.
+	
+	Pour les threads, plusieurs options existent :
+	
+	\begin{itemize}
+		\item délivrer le signal à tous les threads pour lesquels le signal s'applique
+		\item délivrer le signal à tous les threads du processus
+		\item délivrer le signal à certains threads
+		\item assigner à un thread la tâche de recevoir tous les signaux
+	\end{itemize}
+	
+	\subsection{Thread Pools}
+	
+	Cette technique consiste à créer un certain nombre de threads, qui sont stockés dans une pool en attendant d'être assignés à une tâche. Cela a plusieurs avantages :
+	
+	\begin{itemize}
+		\item c'est légèrement plus rapide de servir une requête avec un thread existant que d'en créer un nouveau
+		\item le nombre de threads pour l'application peut être limité à la taille de la pool.
+	\end{itemize}
+	
+	\subsection{Thread spécifique aux données}
+	
+	On permet à chaque thread d'avoir sa propre copie des données. Cela est utile quand on n'a pas le contrôle sur la création du thread, notamment dans le cas d'une thread pool.
+	
+	\subsection{Activation par un scheduler}
+	
+	Les modèles many-to-many et à deux niveaux nécessitent un moyen de communication pour maintenir le nombre approprié de threads alloués à une application. Ainsi, les scheduler activations proposent des upcalls, un mécanisme de communication du kernel vers la librairie de thread, et qui permet de maintenir ce nombre de threads.

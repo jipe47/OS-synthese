@@ -1,0 +1,169 @@
+\chapter{Structure du système}
+
+\section{Services des OS}
+
+Un ensemble de services est fourni à l'utilisateur par l'OS :
+
+\begin{itemize}
+	\item une interface utilisateur, qui vont de CLI (command-line interface) à GUI (Graphics User Interface).
+	\item l'exécution de programmes ; un OS peut charger un programme en mémoire, le lancer et le terminer (normalement ou après une erreur).
+	\item des opérations I/O, qui impliquent un fichier ou un périphérique I/O.
+	\item la manipulation d'un système de fichier : il faut pouvoir lire, écrire et supprimer des fichiers et des répertoire, ainsi qu'effectuer des recherches, gérer les permissions, etc.
+	\item des moyens de communication entre les processus, sur le même ordinateur ou à travers le réseau. Cela peut se faire par de la mémoire partagée ou des envois de messages
+	\item la détection d'erreurs, dans le CPU, dans les périphériques I/O ou dans les programmes utilisateurs. Pour chaque erreur, l'OS doit effectuer l'action appropriée pour la corriger au mieux. Des facilités de debug permettent d'utiliser le système plus efficacement.
+	
+	\item l'allocation de ressources, lorsque plusieurs utilisateurs ou jobs concurrents en demandent. Certains types de ressource (comme les cycles CPU, la mémoire principale, etc) peuvent avoir du code d'allocation spécifique, les autres (les périphériques I/O par exemple) ont un code général de demande et de libération.
+	\item la gestion de comptes utilisateurs, pour savoir qui consomme quelle quantité de ressources et quel genre
+	\item la protection et la sécurité, afin notamment que des processus concurrents n'interfèrent pas. La protection implique que tous les accès aux ressources sont contrôlés, tandis que la sécurité du système pour des outsiders nécessite une authentification utilisateur et est étendu à la défense de périphériques I/O externes contre des tentatives d'accès invalides.
+\end{itemize}
+
+\dessin{1}
+
+
+\section{Interfaces}
+
+	\subsection{CLI}
+	
+	Une CLI permet d'entrer directement les commandes. Parfois c'est implémenté dans le noyau (ex : DOS), parfois avec des programmes systèmes (ex : UNIX). Il existe de nombreuses variantes de CLI (les shells), avec des ajous de commandes ou d'autres fonctionnalités. 
+	
+	\subsection{GUI}
+	
+	Interface plus user-friendly, avec le support de la souris.
+	
+\section{Appels systèmes}
+
+L'OS fournit une interface de programmation, généralement disponible sous la forme d'API. Il s'agit d'une abstraction des appels systèmes, qui s'utilisent comme des fonctions mais qui s'exécutent différemment. Généralement un langage de haut niveau est utilisé (C, C++).
+
+Raisons d'utiliser une API plutôt que des appels systèmes :
+
+\begin{itemize}
+	\item les appels systèmes diffèrent d'une plate-forme à l'autre ; une API permet une migration plus simple.
+	\item il peut y avoir des évolutions côté API et appels systèmes sans qu'il ne soit nécessaire de changer le code d'appel.
+	\item une API fournit plus de fonctionnalités que les appels systèmes.
+	\item l'API supporte plusieurs versions de l'OS et peut s'y adapter.
+\end{itemize}
+
+Chaque appel système est associé à un nombre ; l'interface des appels systèmes maintient une table qui les utilisent pour les indexer. Cette interface va appeler le syscall dans le noyau de l'OS et retourner le statut du syscall et une éventuelle valeur de retour. L'utilisateur n'a pas besoin de connaître l'implémentation du syscall, il n'a qu'à suivre l'interface et comprendre ce que l'OS renvoie.
+
+Par exemple, un appel à printf() en C appelle le syscall write().
+
+\dessin{2}
+
+	\subsection{Passage de paramètres}
+	
+	Il y a en général trois manières de passer des paramètres à un syscall :
+	
+	\begin{enumerate}
+		\item passer les paramètres par les registres, mais cela ne va pas dans le cas où il y a plus de paramètres que de registres ou si les valeurs sont trop grandes pour les stocker dedans. Cependant, c'est la méthode la plus rapide.
+		\item les paramètres sont stockés en mémoire dans un bloc ou une table, et une adresse du bloc est passée comme paramètre dans un registre (Linux, Solaris)
+		\item les paramètres sont placés (ou pushed) sur la stack par le programme et popped par l'OS
+	\end{enumerate}
+	
+	Grâce aux deux dernières méthodes, il n'y a pas de limite sur le nombre ou la taille des arguments passés.
+	
+	Exemple de MS-DOS :
+	
+	\dessin{4}
+	
+	Lors de l'exécution d'un programme, une partie de l'interpréteur est libérée car à cette époque la mémoire est restreinte et une seule tâche est exécutée à la fois. C'est en effet inutile d'avoir l'interpréteur et le programme en mémoire en même temps.
+	
+	Exemple de Solaris :
+	
+	\dessinS{5}{0.3}
+	
+	\subsection{Types d'appels systèmes}
+	
+	\dessin{3}
+	
+\section{Programmes systèmes}
+
+Ce sont des programmes qui fournissent un environnement pour le développement et l'exécution de programmes : 
+
+\begin{itemize}
+	\item manipulation de fichiers
+	\item informations de statut : on peut récupérer des infos sur le système (heure, date, mémoire disponible, etc), ainsi que des infos de login, de débuggage et de performance. Ces programmes affichent généralement une sortie dans le terminal, d'autres implémentent cela dans un registre, qui est utilisé pour stocker et récupérer des infos de configuration.
+	\item modification de fichiers.
+	\item support de langages de programmation : compilateur, assembleurs, débuggers et interpréteurs.
+	\item chargement et exécution de programmes.
+	\item communication  : connections virtuelles entre des processus, des utilisateurs et d'autres systèmes informatiques.
+	\item programmes applicatifs.
+\end{itemize}
+
+
+\section{Design et implémentation d'un OS}
+
+La structure interne des OS varie très fort. On commence par définir les buts et les spécifications, qui sont conditionnés par le choix du hardware et du type de système. On distingue les buts des utilisateurs (l'OS doit être convénient à utiliser, à aborder, fiable, sûr et rapide) des buts du système (facile à designer, à implémenter et à maintenir, flexible, fiable, sans erreurs et efficace).
+
+Un principe important est de séparer les polices (déterminent ce qui sera fait) des mécanismes (détermine comme faire quelque chose), ce qui permet une grande flexibilité si les décisions de police doivent changer.
+
+	\subsection{Approche par couche}
+	
+	Exemple de MS-DOS : il est écrit pour être le plus fonctionnel tout en tenant sur un espace restreint. Il n'est pas divisé en modules, et même s'il y a une structure, il n'y a pas une distinction claire entre les interfaces et les niveaux de fonctionnalités.
+	
+	\dessinS{6}{0.3}
+	
+	Les OS sont divisés en couches, chacune étant construite au-dessus d'autres. La couche la plus basse (layer 0) est le hardware, tandis que celle qui est la plus haute (layer $N$) est l'interface utilisateur. Pour être modulaires, les couches sont sélectionnées de manière à ce que chacune utilise des fonctions et services de couches inférieures. Plus on descend dans les couches, plus l'abstraction est faible. Du coup, il n'y a pas d'intérêt, pour une couche $c$, d'accéder à la couche $c + 1$. Chacune couche a un niveau de détails différent.
+	
+	Exemple de UNIX : initialement, il n'y a que deux parties : les programmes systèmes et le noyau (tout entre l'interface de syscall et le hardware, et qui fournit beaucoup de fonctions pour un seul niveau).
+	
+	\dessin{7}
+	
+	Avoir beaucoup de couches n'a pas que des avantages :
+	
+	\begin{itemize}
+		\item[+] cela devient de plus en plus simple
+		\item[-] il y a un overhead pour chaque couche
+	\end{itemize}
+	
+	Ne pas avoir beaucoup de couches n'est pas non plus souhaitable :
+	
+	\begin{itemize}
+		\item[+] rapide
+		\item[-] moins modulaire car il y a beaucoup de code dans chaque couche
+	\end{itemize}
+	
+	
+	
+	\subsection{Structure de microkernel}
+	
+	Le microkernel se place aussi loin que possible du noyau, dans l'espace utilisateur. Les communications entre les modules utilisateurs se fait avec des envois de messages.
+	
+	\begin{itemize}
+		\item[+] il est plus facile d'étendre un microkernel
+		\item[+] il est plus facile de porter l'OS sur de nouvelles architectures
+		\item[+] c'est plus fiable (moins de code tourne en mode kernel)
+		\item[+] plus sécurisé
+		\item[-] overhead pour les communications entre l'espace utilisateur et l'espace kernel
+	\end{itemize}
+	
+	Exemple de Mac OS X :
+	
+	\dessinS{8}{0.3}
+	
+	\subsection{Approche à base de modules}
+	
+	La plupart des OS modernes utilisent des modules kernel. C'est une approche orientée-objet, où chaque composant est séparé. Chacun dialogue avec les autres à travers des interfaces et est chargé à la demande dans le noyau. C'est similaire à des couches tout en étant plus flexible.
+	
+	Exemple : Solaris.
+	
+\section{Débuggage}
+
+Les OS peuvent générer des fichiers de log qui contiennent les informations d'erreurs. Ainsi :
+
+\begin{itemize}
+	\item la défaillance d'une application peut générer un core dump, un fichier qui capture la mémoire du processus
+	\item la défaillance de l'OS génère un crash dump, un fichier qui contient la mémoire du kernel
+\end{itemize}
+
+Loi de Kernighan : "Debugging is twice as hard as writing the code in the first place. Therefore, if you write the code as cleverly as possible, you are, by definition, not smart enough to debug it."
+
+L'outil DTrace (Solaris, FreeBSD, Mac OS X) permet d'utiliser des sondes lorsque du code est exécuté, de capturer l'état des données et le récupérer.
+
+
+\section{Génération d'OS}
+
+Les OS sont conçus pour tourner sur n'importe quelle classe de machine, pour autant que le système soit configuré. Ils doivent cependant être accessibles au hardware pour qu'il puisse le lancer.
+
+Le boot (booting) démarre un ordinateur en chargeant le kernel en lisant à un endroit fixe de la mémoire. Le noyau se trouve dans le MBR (master boot record) s'il peut rentrer dedans, sinon le bootloader est placé dedans, qui lui va chercher le kernel où il faut.
+
+

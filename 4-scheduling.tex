@@ -1,0 +1,183 @@
+\chapter{Scheduling de processus}
+
+Une utilisation maximale du CPU est obtenue avec du multiprogramming. On a alors des cycles de burst CPU-I/O ; l'exécution d'un processus consiste en un cycle d'exécution CPU et d'attente I/O. On a alors tout intérêt à passer le CPU à un autre processus.
+
+On peut tracer la distribution des bursts et remarquer que la majorité dure peu de temps.
+
+\dessin{20}
+
+La préemption est la possibilité de retirer une ressource qui est toujours en train d'être utilisée.
+
+L'ordonnanceur du CPU sélectionne un processus parmi ceux qui sont en mémoire et qui sont prêts à être exécutés et va lui allouer le CPU. Le scheduler prend une décision lorsqu'un processus
+
+\begin{enumerate}
+	\item passe de l'état running à l'état wait
+	\item[$\rightarrow$] Non préemptif, car le CPU doit être switché sinon il n'est pas utilisé
+	\item passe de l'état running à l'état ready (lorsqu'il y a une interruption)
+	\item[$\rightarrow$] Préemptif
+	\item passe de l'état wait à ready
+	\item[$\rightarrow$] Préemptif, il faut préempter le CPU pour le processus qui est prêt
+	\item se termine
+	\item[$\rightarrow$] Idem que 1
+\end{enumerate}
+
+
+Un système est dit work conserving s'il alloue des ressources lorsqu'il y a une demande. Dès lors, un système non-work conserving peut ne pas attribuer des ressources à un processus qui en a besoin.
+
+Un accès mémoire ne met par le processus en état d'attente, car le délai est très court (quelques dizaines/centaines de cycles). L'overhead du changement de contexte est trop gros comparé à ce temps d'attente, qui lui-même est beaucoup plus petit que pour une opération I/O. C'est du non work conserving à petite échelle.
+
+De plus, une mise en attente à chaque accès mémoire n'est pas envisageable, car il y aurait un changement de contexte quasiment à chaque instruction. Cela va entraîner une diminution de l'efficacité du cache, car beaucoup de processus sont exécutés en même temps. Dès lors, il y aura une partition du cache, plus de cache miss et donc plus d'accès à la mémoire. Au final, tout le système est ralenti.
+
+Dans un GPU, il y a des milliers/millions de threads. Ils sont mis en attente lors d'un accès mémoire en espérant que d'autres threads soient prêts avec leurs données. Un context switch est très rapide (1-2 coups d'horloge) par rapport à un CPU.
+
+Le dispatcher est un module qui donne concrètement le contrôle du CPU au processus sélectionné par l'ordonnanceur à court terme. Cela implique
+
+\begin{enumerate}
+	\item un changement de contexte
+	\item un switch vers le mode utilisateur
+	\item un saut à la bonne position dans le programme de l'utilisateur pour le reprendre
+\end{enumerate}
+
+On ne peut pas mélanger ces étapes, car (1) le context switch doit être exécuté en mode admin et (2) le PC doit être changé après le context switch pour ne pas perdre le fil d'exécution. L'étape 2 doit être la dernière étape si le dispatcher est software, car lui-même utilise le PC.
+
+La latence de dispatch est le temps pris par le dispatcher pour arrêter un processus et en démarrer un autre, et fait partie du context switch latency (qui compte aussi le scheduling latency).
+
+\section{Critères d'ordonnancement}
+
+\begin{enumerate}
+	\item utilisation du CPU : il faut garder le CPU aussi utilisé que possible
+	\item le débit de processus qui complètent leur exécution par unité de temps
+	\item le turnaround time : la quantité de temps pour exécuter un processus particulier
+	\item le waiting time : la quantité de temps qu'un processus doit attendre dans la ready queue
+	\item le response time : la quantité de temps qui s'écoule entre l'émission de la requête jusqu'à ce que la première réponse soit produite (et non sortie, pour tenir compte des environnement de type time-sharing).
+\end{enumerate}
+
+Les deux premiers sont situés au niveau du système et sont à maximiser, tandis que les trois autres sont liés aux processus et doivent être minimisés. Ces deux perspectives doivent être prises en compte ; par exemple, s'il n'y a qu'un seul processus, les deux premiers critères ne seront pas respectés mais bien les trois autres. Il y a un tradeoff entre l'usage des ressources par un processus individuel et la mise à disposition de cette ressource pour tous les autres processus.
+
+\section{Scheduling de processus}
+
+\subsection{FIFO Scheduling}
+
+Exemple :
+
+\dessinS{21}{.3}
+
+Les performances dépendent de l'ordre d'arrivée des processus. Par exemple, si on a $P_2$, $P_3$ et $P_1$, les temps d'attente sont 6, 0 et 3 (en moyenne 3).
+
+Effet Convoy : des processus longs peuvent ralentir tout le système.
+
+\subsection{Shortest-job-first scheduling}
+
+On associe à chaque processus la longueur de son prochain CPU burst. On utilise alors ces longueurs pour ordonnancer les processus qui dureront le moins longtemps.
+
+Cette stratégie est optimale, car elle donne le temps d'attente moyen minimal. On ne peut cependant pas prédire exactement cette durée car on ne peut voir dans le futur, mais on peut toujours se baser sur le passé des processus et utiliser une moyenne exponentielle.
+
+Si $t_n$ est la longueur du $n$ème burst CPU, $\tau_{n+1}$ la valeur prédite du prochain burst et si $0 \leq \alpha \leq 1$, alors
+
+$$\tau_{n + 1} = \alpha t_n + (1 - \alpha) \tau_n$$
+
+Si $\alpha = 0$, l'histoire récente n'est pas utilisée. Si $\alpha = 1$, seul le dernier burst compte.
+
+\subsection{Scheduling avec priorité}
+
+Une priorité (généralement un entier) est associée à chaque processus, et le CPU est alloué au processus qui a la plus haute priorité (le plus petit entier).
+
+\note{La liste qui suit vient de mes notes, je ne sais pas d'où ça vient.}
+\begin{itemize}
+	\item nouvelle façon de préempter un processus : ajout d'un processus avec une plus petite priorité
+	\item non préemptive : processus avec une plus grande priorité
+\end{itemize}
+
+
+La stratégie SJF est un scheduling avec priorité où la priorité est la prédiction de la durée du prochain burst CPU.
+
+Problème : starvation ; les processus de basse priorité peuvent ne jamais être exécutées.
+
+Solution : aging ; au fur et à mesure que le temps s'écoule, la priorité des processus augmente.
+
+\subsection{Round Robin}
+
+Chaque processus possède une unité de temps CPU (time quantum), généralement entre 10 et 100 ms. Après que ce temps soit écoulé, le processus est préempté et ajouté à la fin de la ready queue.
+
+S'il y a $n$ processus dans la ready queue et que le quantum est $q$, chaque processus possède $\frac{1}{n}$ du temps CPU dans des morceaux d'au plus $q$ unités de temps à la fois. Les processus n'attendent jamais plus de $(n - 1)q$ unités de temps.
+
+Plus $q$ est petit et plus il y a d'interactions. Cependant,
+
+\begin{itemize}
+	\item si $q$ est grand, on retourne dans le cas d'une FIFO
+	\item si $q$ est petit, il faut qu'il soit tout de même suffisamment large par rapport au context switch, sinon l'overhead qu'il introduit (quelques micro-secondes) sera trop gros.
+\end{itemize}
+
+\subsection{File à plusieurs niveaux}
+
+On partitionne  la ready queue en deux files séparées avec chacune son propre algorithme d'ordonnancement :
+
+\begin{itemize}
+	\item foreground, pour les processus interactifs, avec un round robin
+	\item background, pour les processus batch, avec une file FIFO
+\end{itemize}
+
+Un ordonnancement doit alors être pratiqué entre les deux files :
+
+\begin{itemize}
+	\item avec un scheduling à priorité fixe (par exemple servir tous les processus foreground puis background), il y a un risque de starvation (la file background pourrait ne jamais être traitée)
+	\item avec du time slicing, chaque file a une certaine quantité du temps CPU, qui est ensuite redistribué aux processus (par exemple 80\% pour la file foreground, 20\% pour la file background).
+\end{itemize}
+
+De cette façon, on peut construire plusieurs files avec plusieurs niveaux de priorité.
+
+\subsection{File à plusieurs niveaux avec feedback}
+
+Un processus peut changer de file (implémentation d'un aging). Une file de ce type est définie par
+
+\begin{itemize}
+	\item le nombre de files
+	\item l'algorithme de scheduling de chaque file
+	\item la méthode utilisée pour déterminer quand un processus est upgradé
+	\item la méthode utilisée pour déterminer quand un processus est dégradé
+	\item la méthode utilisée pour déterminer dans quelle file un processus va entrer quand il nécessite un service
+\end{itemize}
+
+Exemple :
+
+\dessinS{22}{0.3}
+
+\section{Scheduling de threads}
+
+Une distinction doit être faite entre
+
+\begin{itemize}
+	\item les threads kernel, qui sont ordonnancés directement. Il y a une compétition entre tous les threads dans le système : system-contention scope (SCS).
+	\item les threads utilisateurs, qui sont ordonnancés à travers la librairie de threads ; les processus qui les contiennent sont ordonnancés. Il y a une compétition dans les processus : process-contention scope (PCS).
+	
+	Si le système ordonnançait directement les threads des utilisateurs, il y a un risque d'inégalité. Par exemple, si un utilisateur $U1$ crée 99 threads et un autre utilisateur $U2$ en crée 1, $U2$ aura 1\% de l'usage du CPU.
+\end{itemize}
+
+\section{Scheduling multi-processeur}
+
+Le scheduling est beaucoup plus compliqué quand plusieurs CPUs (généralement homogènes) sont disponibles. On distingue
+
+\begin{itemize}
+	\item l'asymmetric multiprocessing : un seul processeur est réservé pour le noyau, tandis que les autres sont dédiés aux processus utilisateurs. L'avantage est que le kernel ne gère pas le multiprocessing (lock, sémaphores, etc), mais il y a un risque de bottleneck
+	
+	\item le symmetric multiprocessing (SMP) : chaque processus s'auto-ordonnance. Les processus sont soit rassemblés dans une ready queue commune, soit il y a une ready queue pour chaque processeur (mais risque de files vides, donc de mauvais load balancing même s'il est simplifié. De plus, il faut un mécanisme de synchronisation).
+\end{itemize}
+
+L'affinité d'un processus à un processeur est le fait qu'un processus s'exécute toujours sur le même processeur, notamment pour profiter de la cache, mais aussi parce que la distance physique entre le CPU utilisé par le processus et la mémoire est plus grande s'il y a un changement. Cela évite un risque de NUMA (Non Uniform Memory Access).
+
+\dessin{23}
+
+Il y a plusieurs types d'affinité :
+
+\begin{itemize}
+	\item soft affinity : selon certaines circonstances (par exemple, trop de processeurs), on autorise un changement de processeur.
+	\item hard affinity : aucun changement n'est permis.
+\end{itemize}
+
+\section{Processeurs multi-core}
+
+Il s'agit de processeurs avec plusieurs coeurs sur une seule puce. Cela permet d'avoir de meilleurs performances et de consommer moins d'énergies.
+
+Les threads multiples par coeur peuvent aussi augmenter. L'idée est de profiter du memory stall pour faire progresser un autre thread pendant que la mémoire est accédée et les données rapatriées.
+
+La manière la plus simple d'implémenter de l'hyperthreading est de dupliquer les registres de l'unité de calcul et d'alterner. Il y a ainsi deux pipelines, ce qui évite le stalling.

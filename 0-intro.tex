@@ -1,0 +1,253 @@
+\chapter{Introduction}
+
+Un OS est l'intermédiaire entre l'utilisateur et le hardware. Ses deux principales caractéristiques sont d'être juste et performant. Il a pour but
+
+\begin{itemize}
+	\item d'exécuter les programmes utilisateurs et rendre leurs problèmes plus faciles
+	\item rendre l'ordinateur pratique à utiliser
+	\item utiliser de manière efficace le hardware
+\end{itemize}
+
+L'OS est entre autre
+
+\begin{itemize}
+	\item un allocateur de ressources : il les gère et est l'arbitre de conflits de requêtes en restant efficace et juste (on a les ressources appropriées, ce n'est donc pas nécessaire équitable)
+	\item un programme de contrôle, qui prévient des erreurs et de l'utilisation incorrecte d'un ordinateur
+\end{itemize}
+
+Le noyau est le seul programme qui tourne tout le temps. Tous les autres programmes sont soit des programmes systèmes, soit un programme applicatif.
+
+	\section{Démarrage d'un ordinateur}
+	
+	Au lancement de la machine, un programme de boostrap est chargé. Il se trouve initialement dans de la ROM ou de l'EPROM (aussi appelé firmware). Il initialise tous les aspects du système, notamment il charge le noyau et lance son exécution.
+	
+	Pour des OS récents, il peut arriver que la ROM ne soit pas suffisante pour l'initialisation complète du système. Dès lors, la ROM pointe vers du code stocké sur le disque qui permet de le faire.
+	
+	\section{Organisation et opérations d'un système}
+	
+	Tous les périphériques (CPU, contrôleur disque, contrôleur USB, etc) sont connectés à un bus partagé et qui leur donne un accès à de la mémoire partagée.
+	
+	Il y a ainsi une compétition entre le CPU et les périphériques pour l'utilisation de la mémoire ; ceux-ci s'exécutent de manière concurrente.
+	
+	Chaque contrôleur de périphérique prend en charge un périphérique particulier et possède un buffer local. Ainsi le CPU peut déplacer des données de/vers la RAM vers/dans ces buffers locaux. Les opérations I/O sont celles qui se produisent du périphérique vers le buffer local du contrôleur. Les contrôleur informent le CPU de la fin de l'opération par une interruption.
+	
+	\section{Interruptions}
+	
+	Une interruption transfère le contrôle vers une routine d'interruption en utilisant le vecteur d'interruption, qui contient les adresses de toutes les routines d'interruption.
+	
+	Lors d'une interruption :
+	
+	\begin{enumerate}
+		\item il y a une sauvegarde du contexte (registres, program counter (PC), etc). Cela est fait en hardware et non en software, sinon on utiliserait un programme qui utilise le PC et les registres.
+		\item chargement de l'interrupt handler
+		\item désactivation des interruptions, ce qui permet d'éviter de perdre une interruption
+		\item exécution du handler
+	\end{enumerate}
+	
+	Un trap est une interruption générée par le logiciel et qui peut être causée par une erreur ou une requête utilisateur.
+	
+	L'OS est dit interrupt driven car il repose entièrement sur les interruptions pour fonctionner.
+	
+		\subsection{Gestion d'une interruption}
+		
+		Ce sont les handler d'interruption qui sauvegardent le PC et les registres plutôt qu'un contrôleur, car ces opérations sont plus rapides en software qu'en hardware, parce que le handler va sauver uniquement les registres utilisés quand du hardware va tout sauver.
+		
+		\note{Contradiction : la sauvegarde du contexte se fait en hardware ou en software ? Software pour les interruptions et hardware pour un scheduling ?}
+	
+	Deux types d'interruption peuvent se produire :
+	
+	\begin{itemize}
+		\item vectored interrupt : interruption qui identifie le périphérique qui a déclenché l'interruption.
+		\item polling : interruption pour laquelle le handler doit envoyer des signaux à chaque périphérique pour trouver celui qui a déclenché l'interruption.
+	\end{itemize}
+	
+	\section{Structure I/O}
+	
+	Après qu'une I/O soit démarrée, le contrôle n'est rendu à l'utilisateur que lorsque l'I/O est terminée. Ainsi, une instruction d'attente occupe le CPU jusqu'à la prochaine interruption (souvent une wait loop). Au plus une requête I/O est exécutée à un moment, il n'y a pas de processing d'I/O en même temps.
+	
+	Le contrôle peut toutefois être retourné à l'utilisateur sans attendre la complétion de l'I/O. Un appel système à l'OS permet à l'utilisateur d'attendre la fin de l'I/O.
+	
+	Une device-status table contient une entrée pour chaque périphérique I/O et indique son type, son adresse et son état. L'OS utilise cette table pour déterminer l'état d'un périphérique et la modifie pour inclure des interruptions.
+	
+		\subsection{DMA - Direct Memory Access}
+		
+		Ce composant est utilisé pour permettre aux périphériques I/O rapides de transmettre de l'information à de la mémoire plus vite. Les données provenant des buffers des contrôleurs peuvent être transférée directement en mémoire sans l'intervention du CPU. Une interruption est générée par bloc, plutôt qu'une interruption par byte.
+		
+	\section{Structure de stockage}
+	
+	On a
+	
+	\begin{itemize}
+		\item la mémoire principale, qui peut être accédée par le CPU directement
+		\item le stockage secondaire, une extension de la mémoire principale et qui offre une capacité de stockage non volatile
+		\item des disques magnétiques, interfacés au système par un contrôleur disque et qui détermine les interactions logiques entre les deux.
+	\end{itemize}
+	
+	Les systèmes de stockage sont organisés en hiérarchie, avec des critères de vitesse, de coût et de volatilité.
+		
+	\dessin{89}
+	
+	Plus on est haut dans la hiérarchie et plus on a besoin de composants pour stocker un bit (6 transistors en cache, un transistor et une capacité en RAM). De plus, la consommation d'électricité augmente (la RAM statique (cache) est constamment alimentée).
+	
+		\subsection{Cache}
+		
+		Le caching consiste à copier les informations dans des systèmes de stockage plus rapides. Du cache est présent à plusieurs niveaux dans un ordinateur ; des informations sont stockées temporairement d'un stockage lent vers un stockage plus rapide.
+		
+		Un cache détermine d'abord si l'information désirée est présente. Si c'est le cas, elle est utilisée, sinon elle est copiée dans le cache et utilisée.
+		
+		Un cache est plus petit que le stockage qui est mis en cache, car la gestion d'un cache est un important problème de design, de même que sa taille et la politique de remplacement.
+		
+	\section{Architecture ordinateur-système}
+	
+	La plupart des systèmes utilisent un processeur générique (general-purpose), mais il y en a beaucoup qui possèdent des processus spécifiques (special-purpose).
+	
+	Les systèmes multi-processeurs (ou systèmes parallèles) sont de plus en plus importants et utilisés et ont les avantages d'être
+	\begin{itemize}
+		\item plus performants
+		\item économe à grande échelle
+		\item plus fiable (en terme de dégradation ou de tolérance à la faute)
+	\end{itemize}
+	
+	\dessin{90}
+	
+	Il y a deux types de systèmes : l'asymetric multiprocessing et le symetric multiprocessing. Exemple d'architecture multiprocessing symétrique :
+	
+	\dessin{91}
+	
+	A cause du temps de propagation, il est plus rapide et sûr d'envoyer des données bit à bit qu'en parallèle, car les lignes sont de longueur différentes, ce qui nécessite un mécanisme de synchronisation.
+	
+	wire $\neq$ transmission (on doit tenir compte de l'endroit où se trouvent les données).
+	
+	Design dual-core :
+		
+	\dessinS{92}{0.3}
+	
+		\subsection{Systèmes distribués/clustered}
+		
+		Dans ces systèmes, plusieurs ordinateurs travaillent ensembles. Généralement, ils partagent un espace de stockage (SAN, storage-area network) et fournissent des services à haute disponibilité, qui peuvent survivre à des défaillances. Il y a deux types de clustering :
+		
+		\begin{itemize}
+			\item asymetric clustering : une machine est en hot-standby mode
+			\item symmetric clustering : plusieurs noeuds font tourner des applications et se monitorent entre elles.
+		\end{itemize}
+		
+		Certains clusters sont designés pour du calcul haute-performance (HPC - high-performance computing), où les applications doivent être écrites pour utiliser de la parallélisation.
+		
+	\section{Structure d'un OS}
+	
+	Le multiprogramming est nécessite pour être efficace. En effet, un seul utilisatuer ne peut pas garder le CPU et les périphériques I/O occupés tout le temps. Le multiprogramming organise les jobs (code et données) de façon à ce que le CPU ait toujours quelque chose à exécuter. Ainsi, un ensemble de jobs est gardé en mémoire et l'un d'entre eux est sélectionné et exécuté via du job scheduling. Quand un job doit attendre (par exemple pour une requête I/O), l'OS passe à un autre job.
+	
+	Le timesharing (ou multitasking) est une extension logique dans laquelle le CPU passe d'un job à l'autre si fréquemment que les utilisateurs peuvent interagir avec tous les jobs en même temps, ce qui donne une interactivité. Le temps de réponse doit ainsi être inférieur à une seconde.
+	
+	Chaque utilisateur a eu moins un programme en cours d'exécution en mémoire, c'est un processus. Si plusieurs jobs sont prêts à être lancés, on utilise du CPU scheduling. Si les processus ne rentrent pas tous en mémoire, on est les swap. La mémoire virtuelle permet l'exécution de processus qui ne sont pas complètement en mémoire.
+	
+		\subsection{Opérations d'un OS}
+		
+		Un OS est basé sur les interruptions lancées par le hardware. Les erreurs logicielles ou les requêtes créent des exceptions ou trap.
+		
+		L'OS peut se protéger lui-même et les autres composants du système grâce à un dual-mode ; un mode utilisateur et kernel sont définis à travers un bit de hardware. Cela permet de distinguer quand le système fait tourner du code utilisateur ou du code noyau, car certaines instructions demandent des privilèges supplémentaires et sont réservées au noyau. Un appel système change le mode en kernel et un retour remet le mode en utilisateur.
+		
+		\dessin{93}
+		
+		Le temps est utilisé pour prévenir une boucle infinie ou un hogging de ressources : une interruption est déclenchée après un certains temps (un compteur géré par l'OS est décrémenté jusqu'à arriver à 0), ce qui déclenche le processus d'ordonnancement, afin de regagner le contrôle ou terminer le programme.
+		
+		\subsection{Gestion de processus}
+		
+		Un processus est un programme en cours d'exécution, c'est l'unité de travail dans le système. Le programme est une entité passive, tandis que le processus est une entité active.
+		
+		Les processus ont besoin de ressources pour accomplir leurs tâches : CPU, mémoire, fichiers, I/O et des données d'initialisation. La terminaison d'un processus nécessite la réclamation des ressources réutilisables.
+		
+		Un processus à un seul thread ne possède qu'un seul program counter (PC), qui spécifie la position de la prochaine instruction à exécuter. Le processus exécute les instructions séquentiellement, une à la fois, jusqu'à la fin.
+		
+		Les processus multi-threaded ont par contre un PC par thread.
+		
+		Typiquement, un système a plusieurs processus, des utilisateurs et des OS qui utilisent un ou plusieurs CPUs en parallèle. La concurrence s'obtient en multiplexant les CPUs aux processus/threads.
+		
+		L'OS est responsable des activités suivantes :
+		
+		\begin{itemize}
+			\item créer et supprimer les processus des utilisateurs et du système
+			\item suspendre et reprendre des processus
+			\item fournir des mécanismes pour la synchronisation de processus
+			\item fournir des mécanismes pour la communication entre processus
+			\item fournir des mécanismes pour gérer les deadlocks
+		\end{itemize}
+		
+\section{Gestion de la mémoire}
+
+Le gestionnaire de mémoire doit déterminer ce qui doit être en mémoire (données et instructions) afin d'optimiser l'utilisation du CPU et les réponses aux utilisateurs. Il a pour activités
+
+\begin{itemize}
+	\item le suivi des parties de la mémoire qui sont en train d'être utilisées et par qui
+	\item la décision de quels processus (ou parties de processus) et quelles données sont mise en ou hors mémoire
+	\item allouer et désallouer de la mémoire quand c'est nécessaire
+\end{itemize}
+
+\section{Gestion du stockage}
+
+L'OS fournit une vue logique et uniforme des périphériques de stockage. Les propriétés physiques sont ainsi abstraites en des unités de stockage logiques, les fichiers. Chaque médium est contrôlé par un périphérique et possède des propriétés très variées (temps d'accès, capacité, taux de transfert, méthode d'accès, etc).
+
+Un système de fichiers permet d'organiser les fichiers en répertoires et en gère l'accès (détermine qui peut accéder à quoi).
+
+Les activités de l'OS incluent
+
+\begin{itemize}
+	\item la création et la suppression de fichiers et répertoires
+	\item des primitives pour manipuler les fichiers et répertoires
+	\item un mapping des fichiers dans un stockage secondaire
+	\item un backup des fichiers sur un média stable (non volatile).
+\end{itemize}
+
+\section{Gestion du stockage de masse}
+
+Généralement un disque est utilisé pour stocker des données qui ne peuvent pas rentrer en mémoire ou des données qui doivent être conservées pour des "longues" périodes de temps. Une bonne gestion de ce stockage est nécessaire, car toute la rapidité d'un ordinateur dépend du sous-système de disques et de ses algorithmes.
+
+Les activités de l'OS sont de
+
+\begin{itemize}
+	\item gérer l'espace libre
+	\item allouer de l'espace
+	\item ordonnancer le disque
+\end{itemize}
+
+Certains types de stockage n'ont pas besoin d'être rapide, par exemple les stockages optiques ou magnétiques. Ils doivent cependant toujours être managés. Ils varient du WORM (write-once, read-many-times) et RW (read-write).
+
+\dessinS{94}{0.35}
+
+Les environnements multitâches doivent être prudents et utiliser la valeur la plus récente de variables, quelque soit l'endroit où elles sont stockées dans la hiérarchie.
+
+\dessinS{95}{0.35}
+
+Les environnements multiprocesseurs doivent fournir une cohérence de cache en hardware, de façon à ce que tous les CPUs aient la valeur la plus récente dans leur cache.
+
+Les environnements distribués sont encore plus complexes à gérer, car plusieurs copies d'une même donnée peut exister.
+
+\section{Sous-système I/O}
+
+Un des objectifs de l'OS est de cacher tous les détails des périphériques hardware à l'utilisateur. Un sous-système I/O est responsable de
+
+\begin{itemize}
+	\item gérer la mémoire des I/O, ce qui inclut
+	\begin{itemize}
+		\item le buffering (stocker des données temporairement pendant qu'elles sont transférées)
+	\item le cache (stocker des parties de données dans un stockage plus rapide pour améliorer les performances)
+	\item et le spooling (le recouvrement de la sortie d'un job avec l'entrée d'autres jobs).
+	\end{itemize}
+	
+	\item l'interface des drivers de périphériques
+	\item les drivers pour des périphériques hardware spécifiques.
+\end{itemize}
+
+\section{Protection et sécurité}
+
+La protection désigne tous les mécanismes pour contrôler l'accès de processus ou d'utilisateurs à des ressources définies par l'OS.
+
+La sécurité est la défense du système contre des attaques internes ou externes (DOS, vers, virus, vol d'identité, etc).
+
+Les systèmes déterminent généralement, parmi les utilisateurs, qui peut faire quoi. Les utilisateurs ont ainsi un identifiant unique qui peut être associé à des fichiers et des processus. Des groupes (identifiés aussi par des identifiants uniques) permettent à des ensembles d'utilisateurs d'être définis et de les associer à des processus ou des fichiers.
+
+Une escalade des privilèges (privilege escalation) permet à un utilisateur de changer d'ID effectif pour posséder plus de droits.
+
+\section{OS Open source}
+
+Ce sont des OS dont le code source est disponible, à l'opposé des OS dont on n'a que des binaires (closed-source).

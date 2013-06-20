@@ -1,0 +1,120 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[french]{babel}
+\usepackage{amssymb}
+\usepackage{enumerate}
+
+\usepackage[cm]{fullpage}
+
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{verbatim}
+\usepackage{framed}
+\usepackage{ulem}
+\usepackage{pigpen}
+\usepackage{pifont}
+\usepackage{hyperref}
+\usepackage{pbox}
+
+\usepackage{graphicx}
+\newcommand{\ens}[1]{\lbrace #1 \rbrace}
+\newcommand{\abs}[1]{\vert #1 \vert}
+
+\newcommand{\union}{\cup}
+\newcommand{\intersection}{\cap}
+\newcommand{\mand}{\wedge}
+\newcommand{\mor}{\vee}
+ 
+\newcommand{\bigoh}{\mathcal{O}}
+
+\newcommand{\dessin}[1]{\begin{center}\includegraphics[scale=0.4]{images/#1.png}\end{center}} % 150%
+\newcommand{\dessinS}[2]{\begin{center}\includegraphics[scale=#2]{images/#1.png}\end{center}}
+
+\newtheorem{theorem}{Théorème}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+
+
+\newenvironment{proof}[1][Preuve]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\qed\end{trivlist}}
+\newenvironment{definition}[1][Définition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Exemple]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+
+\newcommand{\ey}[1]{E_y\{#1\}}
+\newcommand{\els}[1]{E_{LS}\{#1\}}
+
+\newcommand{\yh}{\hat{y}}				% y hat
+\newcommand{\xh}{\hat{x}}				% x hat
+\newcommand{\fh}{\hat{f}}				% f hat
+
+\newcommand{\vary}[1]{var_y\{#1\}}
+\newcommand{\varyx}[1]{var_{y\vert \underline{x}}\{#1\}}
+\newcommand{\varls}[1]{var_{LS}\{#1\}}
+
+\newcommand{\pyo}{P(\overline{y})}		% P(y barre)
+\newcommand{\yo}{\overline{y}}			% y overline
+\newcommand{\ao}{\overline{a}}			% a overline
+\newcommand{\xo}{\overline{x}}			% x overline
+
+\newcommand{\ab}{\textbf{a}} % a bold
+\newcommand{\cb}{\textbf{c}} % c bold
+\newcommand{\wb}{\textbf{w}} % w bold
+\newcommand{\yb}{\textbf{y}} % w bold
+
+\newcommand{\exy}{\text{E}_{\underline{x}, y}}
+\newcommand{\eyx}[1]{\text{E}_{y \vert \underline{x}} \ens{#1}}
+\newcommand{\ex}{\text{E}_{\underline{x}}}
+\newcommand{\xu}{\underline{x}}			% x underline
+\newcommand{\uu}{\underline{u}}			% u underline
+
+\newcommand{\yens}{y_{\text{ens}}}
+\newcommand{\yhens}{\hat{y}_{\text{ens}}}
+
+\newcommand{\LS}{\text{LS}}
+\newcommand{\TS}{\text{TS}}
+\newcommand{\VS}{\text{VS}}
+\newcommand{\GS}{\text{GS}}
+\newcommand{\TSE}{\text{TSE}}
+
+\newcommand{\note}[1]{\textit{\textcolor{red}{Note : #1}}}
+
+\title{Synthèse OS}
+\author{Jean-Philippe Collette}
+
+\makeindex
+\begin{document}	
+	\maketitle
+	\tableofcontents
+	
+	\input{0-intro}
+	
+	\input{1-structure}
+	
+	\input{2-process}
+	
+	\input{3-threads}
+	
+	\input{4-scheduling}
+	
+	\input{5-mem-management}
+	
+	\input{6-virt-mem}
+	
+	\input{7-filesystem-intro}
+	
+	\input{8-filesystem-impl}
+	
+\end{document}	

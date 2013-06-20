@@ -1,0 +1,289 @@
+\chapter{Gestion de la mémoire virtuelle}
+
+La mémoire virtuelle sépare la mémoire logique utilisateur de la mémoire physique. Seules des parties du programme nécessitent d'être en mémoire lors de l'exécution, du coup un espace logique peut être beaucoup plus grand que l'espace physique.
+
+La mémoire virtuelle permet également de partager des espaces de mémoire à plusieurs processus. Elle peut être implémentée via des demandes de pages ou de segments. Elle est généralement organisée comme ceci :
+
+\dessin{41}
+
+Une librairie partagée est généralement du code binaire qui n'est accessible qu'en lecture seule (cela permet de ne pas devoir la copier plusieurs fois en mémoire physique) par plusieurs processus. Cela n'a de toute façon pas de sens d'écrire dedans.
+
+\dessinS{42}{0.3}
+
+
+\section{Demande de page}
+
+Une page n'est ramenée en mémoire que si elle est nécessaire. Cela permet d'avoir besoin de moins d'I/O et de mémoire, du coup la réponse est plus rapide. On permet également plus d'utilisateurs.
+
+Cette politique a du sens car tout le code d'un programme n'est pas exécuté ; des pages peuvent être consommée mais jamais utilisée (par exemple les if des mallocs).
+
+Lorsqu'une page est nécessaire, on regarde la référence. Si elle est invalide, on arrête l'opération, sinon on la ramène en mémoire.
+
+Lazy swapper : on ne swap-in jamais une page tant qu'elle n'est pas demandée. Les swappers qui s'occupent de pages s'appellent des pagers.
+
+Idéalement, les pages d'un même processus sont placées consécutivement sur le disque afin de pouvoir tout rapatrier plus rapidement (vu que le seek time est très grand sur un disque).
+
+\dessinS{43}{0.45}
+
+	\subsection{Bit de validité}
+	
+	Chaque entrée de la table des pages possèdent un bit valid-invalid qui indique si la page est en mémoire (valid) ou non (invalid).
+	
+	Initialement, toutes les pages sont marquées comme invalides. Lors d'une traduction d'adresse, si le bit indique que la page est invalide, il y a un page fault.
+		
+	\subsection{Page fault}
+	
+	S'il y a une référence à une page, la première référence à cette page va déclencher un trap : un page fault. L'OS va alors regarder dans une autre table pour savoir si la référence est invalide (dans ce cas on annule l'opération et on renvoie une erreur), ou bien si elle n'est simplement pas en mémoire. Certains OS n'ont qu'un bit pour des raisons de compatibilité, lorsque le hardware ne sait stocker qu'un seul bit.
+	
+	Dans ce cas :
+	
+	\begin{itemize}
+		\item on récupère une frame vide
+		\item on swap la page dans la frame
+		\item on réinitialise les tables
+		\item on met le bit de validation à valid
+		\item on recommence l'instruction qui a causé le page fault.
+	\end{itemize}
+	
+	La réexécution de l'instruction est nécessaire dans certains cas :
+	
+	\begin{itemize}
+		\item exécuter une instruction peut générer un page fault, car par exemple l'adresse dans le PC peut ne pas être en mémoire
+		\item un page fault peut survenir sur les opérandes d'une opération
+	\end{itemize}
+	
+	Cette réexécution est forcée parce que l'exécution d'une instruction n'est pas divisible (vu que le PC pointe l'instruction, et non le cycle dans lequel on se trouve).
+	
+	Par exemple, si on fait $\sharp 1 + \sharp 2 \rightarrow \sharp 3$ et si $\sharp 3$ fait un segfault, on devra recalculer $\sharp 1 + \sharp 2$. Si toutes les variables sont des pointeurs vers des valeurs dans des pages différentes, il peut y avoir au pire 7 page fault, donc il faut prévoir au moins 7 frames pour cette instruction (cela varie d'une instruction à l'autre). Si on ne peut pas avoir ce nombre minimum de pages en mémoire, l'instruction ne pourra jamais être exécutée.
+	
+	$$\underbrace{\text{add}}_{1\text{ page}} \underbrace{\$1, \$2, \$3}_{\substack{3 \times 1 \text{ page si direct addressing}\\3 \times 2 \text{ si indirect addressing (pointeurs)}}}$$
+	
+	\note{Il faudrait parler ici du transparent 9.13 (rien compris).}
+	
+	\dessinS{44}{0.5}
+	
+	Supposons que le taux de page fault est $0 \leq p \leq 1$ (si $p = 0$, aucun page faults ; si $p = 1$, toutes les références produisent des page faults). On a l'EAT (effective access time) :
+	
+	$$EAT = (1 - p) \times \text{accès mémoire } + p (\text{ page fault overhead } + \text{ swap page out } + \text{ swap page in } + \text{ restart overhead})$$
+	
+	Afin de réduire les accès disque, on peut compresser les pages et les garder en mémoire.
+	
+\section{Création de processus}
+
+La mémoire virtuelle est bénéfique dans la création de processus, avec le copy-on-write et les memory-mapped files.
+
+	\subsection{Copy-on-Write}
+	
+	La copy-on-write (COW) permet au parent et à son enfant de partager une page en mémoire tant qu'elle n'est pas modifiée. Si elle l'est, alors seulement à ce moment-là la page est copiée. Cela rend plus efficace la création de processus vu que seules les pages modifiées sont copiées.
+	
+	Les pages libres sont situées dans une pool de pages ne contenant que des 0. Si jamais il n'y a plus de page libre, on cherche une page en mémoire qui n'est pas trop utilisée et on la swap sur le disque. Cela demande l'utilisation d'un algorithme qui minimise le nombre de page faults. De plus, une même page peut être rapatriée en mémoire plusieurs fois.
+	
+	
+\section{Page Replacement}
+	
+	On veut toutefois prévenir la sur-allocation de mémoire en modifiant le service de page fault pour inclure du page replacement. Ce dernier inclut un bit de modification (dirty bit) qui permet de réduire l'overhead des transferts de page : seules les pages modifiées sont écrites sur le disque. C'est le page replacement qui permet de bien séparer les mémoires logique et physique, et qui du coup permet d'utiliser une mémoire virtuelle plus large que la mémoire physique.
+	
+	Un remplacement de page simple s'intègre comme ceci :
+	
+	\begin{enumerate}
+		\item on cherche la page désirée sur le disque
+		\item on cherche une frame vide
+		
+		\begin{itemize}
+			\item si on trouve une frame vide, on l'utilise
+			\item si on ne trouve pas de frame, on utilise l'algorithme de page replacement pour trouver une frame victime.
+		\end{itemize}
+		
+		\item un rapatrie la page désirée dans la frame (nouvellement) libre et on met à jour la page et la table des pages
+		\item on reprend le processus
+	\end{enumerate}
+	
+	\dessinS{45}{0.45}
+	
+	
+	\subsection{Algorithme de remplacement}
+	
+	On désire le plus petit taux de page fault.
+	
+		\subsubsection{FIFO}
+		
+		\dessinS{46}{0.35}
+		
+		Anomalie de Belady : plus il y a de frames, plus il y a de page faults.
+		
+		\dessinS{47}{0.3}
+		
+		\subsubsection{Algorithme optimal}
+		
+		On remplace la page qui ne sera pas utilisée pour la plus longue période. C'est un algorithme idéal, en pratique il n'est pas possible de l'implémenter, mais il permet de comparer les performances d'autres algorithmes.
+		
+		\dessinS{48}{0.35}
+		
+		\subsubsection{Algorithme LRU - Least Recently Used}
+		
+		\dessinS{49}{0.35}
+		
+		Pour implémenter cet algorithme, on assigne à chaque page un compteur. Chaque fois qu'une page est référencée, on copie la clock dans le compteur. Quand une page doit être changée, on regarde ces compteurs pour choisir celle que l'on va swapper.
+		
+		On pourrait simplifier la structure en utilisant une pile implémentée par une liste doublement liée. Lorsqu'une page est référencée, il suffit de la déplacer sur le sommet (nécessite 6 changements de pointeurs). La recherche pour le remplacement est ainsi extrêmement réduite.
+		
+		Le problème avec la technique du LRU est qu'une page utilisée pendant une initialisation peut avoir un grand compteur, mais ne sera pas réutilisée par après. D'un autre côté, une page fraîchement rapatriée aura un petit compteur, mais par cela sera plus prompte à être swappée que l'autre page.
+		
+		\subsubsection{Algorithme LRU (approximé)}
+		
+		On va assigner à chaque page un bit de référence, qui vaut initialement 0. Quand la page est référencée, on le met à 1. L'algorithme va alors remplacer une page dont le bit vaut 0 (si elle existe). Le problème est qu'on n'a pas de notion d'ordre.
+		
+		Dès lors, on va utiliser le sens horaire : si une page qui va être remplacée (ordre horaire) a un bit de référence à 1, alors on met le bit de référence à 0, on laisse la page en mémoire et on remplace la prochaine page de la même façon.
+		
+		\dessinS{50}{0.5}
+		
+		
+		\subsubsection{Algorithmes de comptage}
+		
+		On garde un compteur sur le nombre de références qui ont été faites à chaque page. Ainsi,
+		
+		\begin{itemize}
+			\item un algorithme LFU va remplacer la page avec le plus petit compteur
+			\item un algorithme MFU va remplacer la page avec le plus grand compteur ; il suppose qu'une page avec un petit compteur a été probablement ramenée en mémoire et doit encore être utilisée.
+		\end{itemize}
+		
+\section{Allocation de frame}
+
+Chaque processus a besoin d'un minimum de pages pour pouvoir fonctionner.
+
+	\subsection{Types d'allocation}
+		\subsubsection{Allocation fixe}
+	
+			\paragraph{Allocation égale}
+		
+			Chaque processus reçoit un nombre égal de frame ; s'il y a 5 processus et 100 frames disponibles, chacun en recevra 20.
+		
+			\paragraph{Allocation proportionnelle}
+		
+			L'allocation dépend de la taille des processus. Soit $s_i$ la taille du processus $p_i$, $S = \sum_i s_i$ et $m$ le nombre total de frame. L'allocation $a_i$ pour un processus $p_i$ est
+		
+			$$a_i = \frac{s_i}{S}m$$
+				
+		\subsubsection{Allocation avec priorités}
+	
+	On utilise une allocation proportionnelle, mais qui utilise des priorités au lieu de la taille. Ainsi, si un processus $p_i$ génère une faute, on sélectionne une de ses frames pour un remplacement, tandis qu'on sélectionne une autre frame d'un processus avec une plus petite priorité.
+	
+	Donner plus de frames à un processus est une forme de priorité, car les processus qui en auront peu auront plus de page fault.
+	
+	\subsection{Allocations globale et locale}
+	
+	\begin{itemize}
+		\item Remplacement global : un processus sélectionne une frame parmi toutes celles disponibles, ce qui inclut les frames d'autres processus. C'est une technique plus flexible, mais qui conduit à plus de trashing.
+		\item Remplacement local : chaque processus ne peut choisir que parmi ses propres frames allouées.
+	\end{itemize}
+	
+	
+	\subsection{Trashing}
+	
+	Le trashing est le fait qu'un processus soit occupé à swapper des pages in et out. Cela peut arriver s'il ne possède pas assez de pages, et donc si le taux de page-fault est élevé. Cela conduit à une faible utilisation du CPU, ce qui fait que l'OS croit qu'il est nécessaire d'augmenter le degré de multiprogramming, et donc d'ajouter un nouveau processus au système.
+	
+	\dessinS{51}{0.3}
+	
+	Le demand paging fonctionne grâce au modèle de localité : les processus migrent d'une localité à une autre, or celles-ci peuvent se recouvrir.
+	
+	Le trashing se produit quand la somme totale des localité est plus grande que l'entièreté de la mémoire.
+	
+	\subsection{Working-Set Model}
+	
+	Soit $\Delta$ la fenêtre de working-set, qui est un nombre fixe de références de page (ex : 10 000 instructions).
+	
+	On définit $WSS_i$ (working set of process $p_i$) comme étant le nombre total de page référencées dans le plus récent $\Delta$ :
+	
+	\begin{itemize}
+		\item si $\Delta$ est trop petit, il n'englobera pas une localité entière. S'il y a trop peu de frames pour un processus, c'est mauvais pour tous les autres car cela va provoquer du trashing, donc des accès disque, et donc les autres page fault seront ralentis.
+		\item si $\Delta$ est trop grand, il englobera plusieurs localités. Trop de frames pour un processus est mauvais pour les autres car ils n'en ont pas beaucoup à se partager.
+		\item si $\Delta = \infty$, il englobera le programme entier.
+	\end{itemize}
+	
+	Soit $D = \sum_i WSS_i =$ la demande totale de frames. Si $D > m$, on a du trashing. Dans ce cas, une mesure serait de suspendre un des processus.
+	
+	\dessinS{52}{0.35}
+	
+	Pour garder un suivi du working set d'un processus, on peut utiliser un timer à intervalle avec un bit de référence.
+	
+	\dessin{53}
+	
+	Il faut donc définir un taux de page-fault acceptable. Il ne doit pas être trop bas sinon les processus perdent des frames, ni trop haut sinon certains en gagnent.
+	
+	\dessin{54}
+	
+	\dessin{55}
+	
+\section{Memory-Mapped files}
+
+Un memory-mapped file permet de traiter les file I/O avec des routines d'accès mémoire, en mappant un bloc du disque à une page en mémoire.
+
+Un fichier est initialement lu en utilisant du demand paging, ce qui fera qu'une portion de la taille d'une page du fichier est lu du système de fichiers dans une page physique. Les lectures et écritures du fichier seront alors traitées comme des accès en mémoire classiques. Il y a donc une simplification du traitement de fichier en passant par la mémoire plutôt qu'avec des appels systèmes write() et read().
+
+Cela permet aussi à plusieurs processus de mapper le même fichier, et donc de partager des pages en mémoire.
+
+\dessinS{56}{0.45}
+
+\section{Allocation de mémoire kernel}
+
+La mémoire du noyau est traitée différemment de la mémoire utilisateur. Elle est généralement allouée à partir d'une pool de mémoire libre. Les requêtes de mémoire kernel portent sur des structures de tailles variées ; parfois, la mémoire réservée doit être continue.
+
+\subsection{Buddy System}
+
+Ce type d'allocation permet d'allouer de la mémoire d'un segment de taille fixe constitué de pages physiquement continues. L'allocateur utilisé est basé sur des puissances de 2 : les requêtes sont arrondies à la prochaine puissance de 2 (si elle n'en sont pas une), et lorsqu'une plus petite allocation est nécessaire que ce qui est disponible, on divise le segment courant en deux "buddies" de puissance 2 inférieure. On continue jusqu'à avoir la taille de segment appropriée.
+
+\dessinS{57}{0.3}
+
+L'utilisation de grosses pages a des avantages et inconvénients :
+\begin{itemize}
+	\item[+] le seektime est plus rentabilisé, grâce à la localité des pages
+	\item[+] les pages peuvent être de taille plus petite
+	\item[-] si on utilise peu de mémoire, on a une grosse réservation
+	\item[-] on peut arriver à conserver des données inutiles
+\end{itemize}
+
+\subsection{Slab Allocator}
+
+On définit un slab comme une ou plusieurs pages physiquement consécutives. Un cache consiste en un ou plusieurs slabs.
+
+\dessin{58}
+
+Un cache est dédié à chaque type d'objets du noyau ; chaque cache est rempli d'instances de ces structures de données. Lorsque le cache est créé, tous ces objets sont marqués comme libres. Quand des structures sont stockées, les objets sont marqués comme utilisés.
+
+Si un slab est rempli d'objets utilisés, le prochain objet est alloué à partir d'un slab vide. S'il n'y a pas de slab vide, un nouveau slab est alloué.
+
+\begin{itemize}
+	\item[+] pas de fragmentation
+	\item[+] les requêtes en mémoire sont satisfaites rapidement
+	\item[-] [augmenter la taille de TLB est très coûteux] \note{Pourquoi ? Cela vient de mes notes.}
+\end{itemize}
+
+\section{Autres problèmes}
+
+	\subsection{Prepaging}
+	
+	Le prepaging a pour but de réduire les grands nombres de page faults qui se produisent au lancement d'un programme. Pour ce faire, on prépare toutes ou une partie des pages qui seront nécessaires au processus, avant même qu'elles soient référencées.
+	
+	Le problème est que ces pages prepaged sont inutilisées, et que donc de l'I/O et de la mémoire sont gaspillés. Supposons que l'on ait $s$ pages prepaged et $\alpha$ de ces pages sont utilisées. Est-ce que le coût de $s \times \alpha$ page faults évités est meilleur que le cout de prépager $s \times (1 - \alpha)$ pages non nécessaires ? Si $\alpha$ est proche de 0, alors le prepaging est perdant.
+	
+	
+	\subsection{Taille de la page}
+	
+	Le choix de la taille de la page a un impact sur beaucoup de choses :
+	
+	\begin{itemize}
+		\item la fragmentation : plus les pages sont petites et moins il y a de fragmentation
+		\item la taille de la table des pages : plus les pages sont petites et plus cette table sera grande (car il y a plus de pages à stocker en mémoire)
+		\item l'overhead I/O
+		\item la localité : plus les pages sont grandes et plus on a de chance que la prochaine donnée/instruction référencées sera dans les pages qui sont déjà présentes en mémoire. Plus les pages sont petites et plus on peut suivre la localité (better tracking of locality)
+	\end{itemize}
+	
+	
+	\note{Ici, il y a un problème dont je n'ai pas pris note.}
+	
+	Deux stratégies pour parer à ce problème :
+	
+	\begin{itemize}
+		\item mettre les buffers dans le noyau (mais cela implique des copies de l'espace kernel vers l'espace utilisateur en plus)
+		\item locker la page
+	\end{itemize}

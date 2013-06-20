@@ -1,0 +1,339 @@
+\chapter{Systèmes de fichiers}
+
+Un fichier est un espace continu de données que l'on peut adresser.  Un fichier peut contenir des données  (numériques, caractères, binaires) ou un programme, un binaire mais avec une structure particulière qui permet de l'exécuter via l'OS.
+
+L'OS est chargé de transformer cette vision de haut niveau en blocs sur le disque.
+
+\section{Structure des fichiers}
+
+La structure peut être
+
+\begin{itemize}
+	\item inexistante, avec une simple liste de bytes
+	\item simple : lignes, longueur fixée ou variable
+	\item complexe : document formaté ou relocatable load file
+\end{itemize}
+
+Les fichiers simples et complexes peuvent être simulés par des simples séquences de bytes en insérant des caractères de contrôle appropriés.
+
+Ce sont les programmes et l'OS qui créent les fichiers.
+
+Si un OS pouvait comprendre tous les types de fichiers :
+
+\begin{itemize}
+	\item[+] plus facile de programmer une application
+	\item[-] il y a beaucoup trop de fichiers différents, cela donnerait lieu à trop de code
+	\item[-] un programmeur ne peut pas créer de nouveaux types de fichiers ; il est bloqué à ce que comprend l'OS
+\end{itemize}
+
+
+\section{Attributs d'un fichier}
+
+\begin{itemize}
+	\item un nom (la seule information permettant une lecture par un humain)
+	\item un identifiant unique, qui identifie le fichier dans le système de fichiers
+	\item un type, pour les systèmes qui supportent différents types de fichier
+	\item un emplacement, un pointeur vers la position du fichier sur un device
+	\item une taille
+	\item une protection, qui contrôle qui peut lire, écrire et exécuter le fichier
+	\item un temps, une date et une identification d'utilisateur, qui servent à la protection, à la sécurisation et au monitoring de l'utilisation du fichier
+\end{itemize}
+
+Ces informations sont gardées dans la structure de répertoire (directory structure), qui est maintenue sur le disque.
+
+\section{Opérations sur les fichiers}
+
+Un fichier est un type de données abstraites (abstract data type), c'est-à-dire que c'est un type de données avec des opérations permettant de la manipuler. Ce n'est donc pas une structure de données (data structure), qui est plutôt utilisée pour représenter les données. Vu que le type est abstrait, cela veut dire qu'il peut y avoir plusieurs instances dans un programme.
+
+On a les opérations suivantes :
+
+\begin{itemize}
+	\item create, write, read
+	\item reposition within file ; moyen de savoir à quelle position on se trouve dans le fichier lorsqu'on lit ou écrit. La position est prise par rapport au début ou à la fin du fichier.
+	\item delete
+	\item truncate (par rapport à delete, cela ne supprime pas les attributs du fichier ; ça ne fait que le vider)
+	\item Open($F_i$) : cherche l'entrée $F_i$ dans la structure de répertoire sur le disque et déplace le contenu en mémoire.
+	
+	\item Close($F_i$) : déplace le contenu en mémoire de $F_i$ vers la structure de répertoire sur le disque.
+\end{itemize}
+
+Vu que le directory structure est sur le disque, un accès systématique et répété serait trop lent. Dès lors, lorsqu'un fichier est ouvert, l'OS va charger les méta-données/attributs du fichier en mémoire et le retirer lors de la fermeture.
+
+Un disque ne comprend que des blocs ; l'OS bufferise des blocs lors de la lecture ou l'écriture de fichier. Du coup, ne pas fermer un fichier lors d'une lecture n'est pas grave, pas contre ne pas fermer un fichier après une écriture peut entraîner la non-écriture des données du buffer sur le disque, donc la perte de données.
+
+Plusieurs fichiers pourraient accéder au fichier en même temps. Pour gérer cela, il faut garder un pointeur vers chaque processus dans une table, avec des méta-données.
+
+Si jamais il y a une demande de lecture et une demande de truncate en même temps, on va dupliquer le fichier avant de le vider.
+
+	\subsection{Ouverture de fichier}
+	
+	Plusieurs structures de données sont nécessaires pour gérer l'ouverture de fichiers
+	
+	\begin{itemize}
+		
+		\item file table : table commune et qui contient les méta-données de tous les fichiers ouverts
+		\item Chaque processus a une table qui liste les fichiers utilisés, avec la position, un pointeur vers les méta-données et les droits d'accès
+		\item file-open count : compteur du nombre de fois que le fichier est ouvert, afin de pouvoir retirer des données de la table des fichiers ouverts lorsque les processus le ferme
+	\end{itemize}
+	
+	\subsection{Ouverture de fichier avec verrou}
+	
+	Cette opération est proposée par les OS et les systèmes de fichier et permet de négocier l'accès à un fichier.
+	
+	Il y a deux modes d'utilisation :
+	
+	\begin{itemize}
+		\item mandatory : l'accès est refusé selon le type de verrou tenu et demandé. Ainsi, openlock() et read() sont autorisés par d'autres processus, mais pas write().
+		\item[$\rightarrow$] le verrou est imposé à l'ouverture
+		\item advisory : les processus peuvent savoir le statut des verrous est décide de ce qu'ils vont faire ; c'est au programmeur de tout gérer.
+		\item[$\rightarrow$] il faut utiliser openlock() pour locker proprement le fichier.
+	\end{itemize}
+	
+	
+\section{Types de fichiers}
+
+\dessin{59}
+
+Sous Unix, les extensions sont généralement ignorées et des magic numbers sont utilisés pour représenter les types de fichier.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Suite à compléter avec les notes %%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Méthodes d'accès}
+
+Deux accès sont possibles :
+
+\begin{itemize}
+	\item accès séquentiel, avec
+	
+	\begin{itemize}
+		\item read next
+		\item write next
+		\item reset
+		\item no read after last write
+		\item rewrite
+	\end{itemize}
+	
+	\dessinS{60}{0.3}
+	
+	\item accès direct, avec (si $n$ est un numéro de bloc relatif)
+	\begin{itemize}
+		\item read n
+		\item write n
+		\item position to n
+		\item read next, write next
+		\item rewrite n
+	\end{itemize}
+\end{itemize}
+
+Un accès séquentiel peut être simulé par un accès direct :
+
+\begin{itemize}
+	\item reset :
+	\begin{itemize}
+		\item cp = 0;
+	\end{itemize}
+	
+	\item read next
+	\begin{itemize}
+		\item read cp;
+		\item cp = cp + 1;
+	\end{itemize}
+	
+	\item write next
+	\begin{itemize}
+		\item write cp;
+		\item cp = cp + 1;
+	\end{itemize}
+\end{itemize}
+
+Afin d'indexer un fichier (de manière relative), on maintient un fichier d'index. (?)
+
+\dessin{61}
+
+\section{Directory Structure}
+
+Un directory structure est une connexion de noeuds qui contiennent des informations à propos de tous les fichiers. Le directory structure et les fichiers résident tous sur le disque.
+
+	\subsection{Structure du disque}
+	
+	Un disque peut être divisé en partitions. Du RAID permet de protéger des disques ou des partitions d'une défaillance.
+	
+	Un disque ou une partition peut être utilisée brute (raw), c'est-à-dire sans système de fichiers, ou formatée avec un système de fichiers.
+	
+	Les partitions sont également connues sous le nom de minidisques ou de tranches. L'entité qui contient le système de fichiers est connu sous le nom de volume.
+	
+	Chaque volume contenant un système de fichiers garde des informations dessus dans un device directory ou une volume table of contents.
+	
+	Des systèmes de fichiers généraux (general-purpose file systems) existent tout comme des systèmes de fichiers spéciaux (special-purpose file systems) (par exemple le swap). Généralement ils sont tous au sein du même OS ou ordinateur.
+	
+	\dessin{62}
+	
+	\subsection{Opérations sur un répertoire}
+	
+	\begin{itemize}
+		\item chercher un fichier
+		\item créer, supprimer, renommer un fichier
+		\item lister un répertoire
+		\item parcourir le système de fichiers
+	\end{itemize}
+	
+	\subsection{Organisation logique d'un répertoire}
+	
+	Le but est d'obtenir
+	
+	\begin{itemize}
+		\item de l'efficacité, notamment localiser un fichier rapidement
+		\item la posssibilité de nommer les fichiers, ce qui est plus simple pour les utilisateurs. Ainsi, deux utilisateurs peuvent avoir le même nom pour différents fichiers, et le même fichier peut avoir plusieurs noms différents
+		\item la possibilité de grouper des fichiers par leurs propriétés (tous les programmes, tous les jeux, etc)
+	\end{itemize}
+	
+		\subsubsection{Répertoire à un niveau}
+		
+		On n'a qu'un seul répertoire pour tous les utilisateurs. Un fichier est associé directement à lui-même.
+		
+		\dessinS{63}{0.3}
+		
+		\begin{itemize}
+			\item[+] facile à maintenir (par exemple, une recherche binaire est possible après avoir trié les noms) 
+			\item[+] facilité de groupage
+			\item[-] les noms doivent être uniques
+		\end{itemize}
+		
+		
+		\subsubsection{Répertoire à deux niveaux}
+		
+		Chaque utilisateur possède un répertoire séparé. Un chemin (path name) est alors utilisé pour distinguer un fichier.
+		
+		\dessinS{64}{0.35}
+		
+		\begin{itemize}
+			\item[+] recherche relativement efficace
+			\item[+] plusieurs fichiers peuvent avoir le même nom,... 
+			\item[-] ... mais uniquement pour des utilisateurs distincts
+			\item[-] pas de capacité de groupage
+			\item[-] un utilisateur ne peut pas avoir deux fichiers qui portentle même nom
+		\end{itemize}
+		
+				
+		\subsubsection{Répertoire avec une structure d'arbre}
+		
+		\dessin{65}
+		
+		\begin{itemize}
+			\item[+] recherche efficace
+			\item[+] capacités de groupage
+		\end{itemize}
+		
+		On a la possibilité d'utiliser des chemins relatifs ou absolus.
+		
+		On a le choix entre deux polices pour supprimer un répertoire :
+		
+		\begin{itemize}
+			\item supprimer récursivement tout son contenu
+			\item ne rien supprimer tant que le répertoire contient des fichiers
+		\end{itemize}
+		
+		\subsubsection{Répertoire à graphe acyclique}
+		
+		On a le partage de sous-répertoires et de fichiers.
+		
+		\dessin{66}
+		
+		On peut avoir deux noms différents pour le même fichier : ce sont des alias.
+		
+		Si par exemple dict supprime list, on a un pointeur vacant. Plusieurs solutions sont possibles :
+		
+		\begin{itemize}
+			\item utiliser des backpointers, afin que l'on puisse supprimer tous les pointeurs. On a cependant des enregistrements avec une taille variable.
+			\item utiliser des backpointers utilisant une organisation de daisy chain.
+			\item utiliser une solution avec un compteur entry-hold.
+		\end{itemize}
+		
+		\note{J'ai pas compris la fin du slide 10.28, du coup la suite de cette sous-section}
+		
+		New directory entry type :
+		
+		\begin{itemize}
+			\item Link– another name (pointer) to an existing file"
+			\item Resolve the link– follow pointer to locate the file
+		\end{itemize}
+		
+		\subsubsection{Répertoire à graphe général}
+		
+		\dessin{67}
+		
+		Comment garantir qu'il n'y a pas de cycle :
+		
+		\begin{itemize}
+			\item ne permettre que des liens vers des fichiers, et pas vers des sous-répertoire
+			\item garbage collection
+			\item chaque fois qu'un nouveau lien est ajouté, on utilise un algorithme de détection de cycle pour voir si c'est bon.
+		\end{itemize}
+		
+		Si on fait ls avi, on va avoir une boucle, ce qu'on veut éviter. Pour parer à cette situation, on va utiliser un bit qui indique s'il s'agit d'un lien vers quelque chose qui existe déjà ou si c'est un lien direct vers un répertoire/fichier créé. De ce fait, on ne suit que les liens directs.
+	
+		Si on supprime book, on peut effectuer un comptage, et s'il y a plus d'un direct link, on ne supprime rien. Un lien sera supprimé uniquement quand il est accédé.
+		
+		Le garbage collector n'est pas une bonne solution car il peut devenir énorme et résider sur le disque (donc, lorsqu'on en aura besoin, il y aura du swap et donc un temps d'attente important).
+		
+		La structure peut être importante et résider sur le disque. Lazzy link collection : on collecte les liens "morts" lorsqu'ils sont utilisés.
+		
+		\dessinS{68}{0.3}
+		
+\section{Montage de systèmes de fichiers}
+
+Un système de fichiers doit être monté avant qu'il ne soit accédé, c'est-à-dire que l'on rend compte à l'OS qu'on veut pouvoir l'utiliser. Un systèmes de fichiers non monté est monté à un point de montage (mount point).
+
+\dessin{69}
+
+Lorsqu'on monte les points non montées (dans users), on a trois possibilités :
+
+\begin{itemize}
+	\item refuser le montage
+	\item fusionner les sous-répertoires
+	\item masquer les sous-répertoires déjà présents
+\end{itemize}
+
+\section{Partage de fichiers}
+
+Le partage de fichiers sur un systèmes à plusieurs utilisateurs est généralement souhaité, mais cela doit se faire avec un mécanisme de protection. Sur des systèmes distribués, les fichiers partagés peuvent l'être à travers un réseau. 
+
+La méthode NFS (Network File System) est une méthode de partage de fichiers distribués assez courante.
+
+Pour permettre le partage de fichiers, on utilise des identifiants utilisateurs (users IDs), qui permettent d'attribuer des permissions et des protections par utilisateur, et des identifiants de groupe (group IDs), qui donnent aux utilisateurs du groupe les permissions du groupe.
+
+	\subsection{Systèmes de fichiers distants}
+	
+	On utilise le réseau pour permettre à un système de fichiers d'être accessible par plusieurs systèmes. Cela peut se faire
+	
+	\begin{itemize}
+		\item manuellement, avec des programmes comme FTP
+		\item automatiquement, de manière transparente, en utilisant des systèmes de fichiers distribués
+		\item semi-automatiquement, via le world wide web
+	\end{itemize}
+	
+	Le modèle client-serveur permet aux clients de monter des systèmes fichiers distants de serveurs. Un serveur peut avoir plusieurs clients, mais le système d'identification reste insécurisé ou compliqué.
+	
+	NFS est le protocole de partage de fichiers standard UNIX, tandis que CIFS est le protocole standard de Windows. Des services distribués d'information (distributed naming services) comme LDAP, DNS, NIS, etc donnent les informations nécessaires pour faire du remote computing.
+	
+	A cause de l'aspect distant, il est nécessaire de prendre en compte de nouveaux modes de défaillance.  La récupération d'une défaillance peut impliquer les informations sur chaque requête distance. Ainsi, des protocoles stateless comme NFS incluent toutes ces informations dans chaque requête, ce qui permet une récupération facile mais est moins sécurisé.
+	
+	
+	\subsection{Protection}
+	
+	Le créateur/propriétaire d'un fichier devrait être capable de contrôler ce qui peut être fait avec et par qui. Ainsi, on a les types d'accès suivants :
+	
+	\begin{itemize}
+		\item read
+		\item write
+		\item execute
+		\item append
+		\item delete
+		\item list
+	\end{itemize}
+	
+	Trois modes d'accès sont disponibles : read, write et execute. Il y a trois classes d'utilisateurs : l'accès propriétaire, l'accès groupe et l'accès public.
+	
+	Attacher un fichier à groupe : chgrp G file.

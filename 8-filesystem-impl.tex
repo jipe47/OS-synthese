@@ -1,0 +1,331 @@
+\chapter{Implémentation d'un système de fichiers}
+
+Une structure de fichier est une unité logique de stockage à laquelle sont attachées des informations.
+
+Un système de fichiers est organisé en couches et réside sur des périphériques de stockage secondaire (disques). Il fournit un moyen d'accès convénient et efficace, et permet de stocker, localiser et récupérer des données facilement.
+
+Un file control block est une structure de stockage qui est constituée d'informations à propos d'un fichier.
+
+Le device driver contrôle le périphérique physique.
+
+\dessin{70}
+
+Le module d'organisation des fichiers permet la traduction des blocs logiques de l'OS en blocs physiques.
+
+Un boot control block contient les informations nécessaires au système pour booter l'OS à partir d'un volume.
+
+Le volume control block contient des détails sur un volume.
+
+Les structures de répertoire organisent les fichiers.
+
+Chaque détail d'un fichier est stocké dans un File Control Block (FCB). Il contient généralement
+
+\begin{itemize}
+	\item les permissions du fichier
+	\item des dates (création, accès, écriture)
+	\item le propriétaire, le groupe, l'ACL (access control list)
+	\item la taille du fichier
+	\item les blocs de données du fichier, ou un pointer vers ces blocs
+\end{itemize}
+
+\section{Structures en mémoire}
+
+Structures en mémoire lors de (a) l'ouverture d'un fichier et (b) d'une lecture.
+
+\dessinS{71}{0.45}
+
+\section{Systèmes de fichiers virtuels}
+
+Les systèmes de fichiers virtuels (VFS) offrent une approche orientée objet pour implémenter les systèmes de fichiers. Cela permet au système d'appeler une même interface (l'API) pour plusieurs types de systèmes de fichier. 
+
+\note{Pas compris (11.9): "The API is to the VFS interface, rather than any specific type of file system."}
+
+\dessinS{72}{0.45}
+
+\section{Implémentation d'un répertoire}
+
+Deux structures sont généralement utilisées :
+
+\begin{itemize}
+	\item une liste liée des noms de fichiers avec un pointeur vers les données. C'est simple à programmer, mais l'exécution est plus lente.
+	\item une table de hachage, une liste liée avec une structure de hash. Cela diminue le temps de recherche, mais on est face à des collisions lorsque deux noms de fichier se hashent au même emplacement. De plus, la taille de la table est fixe.
+\end{itemize}
+
+
+\section{Méthodes d'allocation}
+
+	Ces méthodes décrivent comment les blocs du disques sont alloués pour des fichiers.
+
+	\subsection{Allocation contigüe}
+	
+	Chaque fichier occupe un ensemble continu de blocs sur le disque.
+	
+	\begin{itemize}
+		\item[+] c'est simple ; on n'a besoin que d'une position de départ (un numéro de bloc) et de la longueur
+		\item[+] un accès aléatoire est possible
+		\item[+] la lecture du fichier est rapide : on n'a qu'un seek time et un read time suivi de plus petits read times.
+		\item[-] gaspillage de place car des blocs ne sont pas utilisés. On revient à un problème d'allocation dynamique à cause des blocs libres éparpillés partout (fragmentation externe, entre les fichiers)
+		\item[-] les fichiers ne peuvent pas s'agrandir
+	\end{itemize}
+			
+	\subsection{Extent-Based systems}
+	
+	Il s'agit d'un système où les blocs du disque sont alloués par extents. Un extent est un ensemble de blocs continus ; un fichier consiste en un ou plusieurs extends.
+	
+	Cela permet de diminuer la fragmentation externe, mais augmente la fragmentation interne.
+	
+	Par exemple, si un extent fait 10 blocs et qu'on a un fichier de 27 blocs, il y a 3 blocs qui sont gaspillés.
+	
+	\subsection{Allocation liée}
+	
+	Chaque fichier est une liste liée de blocs disque. Ceux-ci peuvent être éparpillés un peu partout sur le disque.
+	
+	\dessin{73}
+	
+	\begin{itemize}
+		\item[+] c'est simple à programmer ; on n'a besoin que de l'adresse de départ
+		\item[+] il n'y a pas de gaspillage d'espace ; pas de fragmentation (sauf de la fragmentation interne, dans le bloc)
+		\item[+] le fichier peut grandir
+		\item[-] plus lent, car il faut accéder à plusieurs endroits sur le disque
+		\item[-] pas de random access
+		\item[-] la liste peut être brisée par un bloc défectueux
+	\end{itemize}
+	
+	La FAT (file-allocation table) est utilisée par MS-DOS et contient les pointeurs vers les blocs suivants, donc permet un random access. Elle contient une entrée par bloc et permet de suivre les blocs d'un fichier. Elle est stockée sur le disque et gardée en mémoire.
+	
+	\dessin{74}
+	
+	\subsection{Allocation indexée}
+	
+	Tous les pointeurs vers les blocs sont rassemblés dans un bloc d'index.
+	
+	\dessin{75}
+	
+	\begin{itemize}
+		\item[+] random access
+		\item[+] accès dynamique sans fragmentation externe...
+		\item ... mais overhead à cause du bloc d'index.
+		\item[-] nécessité d'avoir une table d'index
+		\item[-] perdre le bloc index fait perdre tout le fichier. Solution : le répliquer
+		\item[-] il y a une limitation du nombre de pointeurs dans un bloc, ce qui limite la taille d'un fichier. Solution : chaînage de blocs, ou bien (plus performant) utiliser un arbre de blocs pour former un Btree, avec un bloc qui pointe d'autres blocs.
+	\end{itemize}
+	
+	L'indexage peut se faire sur plusieurs niveaux.
+	
+	\dessin{76}
+	
+	Exemple de schéma combiné : UNIX, pour des blocs de 4K bytes. Une partie du fichier est accessible directement, puis une partie de la suite l'est par un single indirect, puis double, etc.
+	
+	\dessin{77}
+	
+\section{Gestion de l'espace libre}
+
+	\subsection{Vecteur de bits}
+	
+	Pour $n$ blocs, un vecteur indique si un bloc $i$ est libre (avec la valeur 1) ou occupé (0). 
+	
+	Nombre de blocs nécessaires :
+	
+	$$\text{(nombre de bit par mot) } \times \text{ nombre de mots de valeur 0) } + \text{ offset du premier bit à 1}$$
+	
+	\begin{itemize}
+		\item[+] facilité d'avoir de l'espace continue
+		\item[+] Le parcours du vecteur est rapide. Il suffit de trouver le premier bit différent de 1, or certains processeurs disposent d'une instruction spéciale qui permet de récupérer rapidement l'index du premier bit à 1 dans un byte.
+		\item[-] besoin de plus d'espace
+		\item[-] ce vecteur doit être en mémoire et sur un disque
+	\end{itemize}
+	
+	Il faut veiller à synchroniser le bit map de la mémoire et celui du disque et surtout ne pas arriver à des situations où un bit vaut 1 en mémoire et 0 sur le disque, car en cas d'extinction brutale de la machine, le bloc sera marqué comme libre alors qu'il ne l'est pas, ce qui entraînera une perte de données.
+	
+	Solution :
+	
+	\begin{itemize}
+		\item mettre le bit $i$ à 0 sur le disque
+		\item allouer le bloc $i$
+		\item mettre le bit $i$ à 0 en mémoire
+	\end{itemize}
+	
+	\subsection{Liste liée}
+	
+	On utilise un système similaire que pour l'allocation de blocs ; une liste liée répertorie tous les blocs libres.
+	
+	\begin{itemize}
+		\item[+] aucun gaspillage d'espace
+		\item[-] difficile d'avoir de l'espace continu
+	\end{itemize}
+	
+	Il est nécessaire de protéger le pointeur vers la liste.
+	
+	\subsection{Fichier spécial}
+	
+	Utilisation d'un fichier qui alloue tous les blocs libres.
+	
+	\begin{itemize}
+		\item[-] nécessité d'une structure spéciale
+	\end{itemize}
+	
+	\subsection{Grouping}
+	
+	Pour $n$ blocs libres, on garde un index ; un bloc pointe vers les $n - 1$ blocs restants. On garde alors une liste de tout ces blocs index.
+	
+	\subsection{Counting}
+	
+	C'est similiaire à de la compression : on stocke le départ d'un espace libre continu et on y attache sa taille
+	
+\section{Efficacité et performances}
+
+L'efficacité dépend
+
+\begin{itemize}
+	\item des algorithmes d'allocation du disque et de répertoire
+	\item des types de données gardées dans les entrées des fichiers dans le répertoire
+\end{itemize}
+
+Les performances peuvent être augmentée grâce à
+
+\begin{itemize}
+	\item un cache du disque ; un espace de la mémoire serait réservé à la conservation de blocs qui sont souvent accédés.
+	\item free-behind et read-ahead ; techniques pour optimiser l'accès séquentiel
+	\item la réservation d'une partie de la RAM pour être un disque virtuel (ou RAM disk).
+\end{itemize}
+
+	\subsection{Page cache}
+	
+	Un page cache est un cache pour des pages plutôt que pour des blocs du disque et qui utilise des techniques de mémoire virtuelle. Les I/O mappées en mémoire utilise un page cache et une routine I/O utiliser un buffer (disk) cache.
+	
+	\dessinS{78}{0.3}
+	
+	Il est nécessaire d'utiliser un page cache car la mémoire est organisée en page et non en blocs. On pourrait n'avoir qu'un cache si un bloc du disque a la même taille qu'une page en RAM.
+
+	\subsection{Unified Buffer Cache}
+	
+	Un buffer cache unifié utilise le même page cache pour cacher les pages mappées en mémoire et les I/O de systèmes de fichiers.
+	
+	\dessinS{79}{0.25}
+	
+\section{Log de systèmes de fichiers}
+
+Un log enregistre toutes les mises à jour du système de fichiers comme des transactions. Une transaction est considérée comme exécutée (committed) une fois qu'elle a été écrite dans le log. Cependant, cela ne veut pas dire que le système de fichiers a été mis à jour ; les transactions du log sont écrites de manière asynchrone  et quand le système de fichiers est modifié, la transaction est retirée du log. Si le système crash, toutes les transactions du log devront toujours être exécutées.
+
+Sans log, une modification peut ne pas être écrite sur le disque à cause du cache si le système crash. Avec le log, les modifications ne se font pas tout de suite sur le disque ; cet overhead très petit permet d'accélérer le tout.
+
+\section{Stockage de masse}
+
+Un disque-dur tourne à une vitesse de 5400 à 15000 tours/minute. Le taux de transfert est le débit auquel les données circulent entre le lecteur et l'ordinateur.
+
+Le positioning time (random-access time) est le temps nécessaire pour déplacer le bras au cylindre désiré (seek time) et le temps pour que le secteur désiré tourne jusqu'à se trouver en dessous de la tête de lecture (rotational latency).
+
+Un head crash se produit lorsque la tête du disque entre en contact avec le disque.
+
+Les lecteurs sont attachés à l'ordinateur via un bus I/O : EIDE, ATA, SATA, USB, SCSI, etc. Un host controller dans l'ordinateur utilise ce bus pour dialoguer avec le contrôleur du disque (intégré dans le périphérique).
+
+Un secteur est un bloc physique.
+
+\dessinS{80}{0.3}
+
+	\subsection{Structure de disque}
+	
+	Les lecteurs de disque sont adressés comme un tableau à une dimension de blocs logiques, où un bloc logique est la plus petite unité de transfert. Ce tableau est mappé dans les secteurs séquentiellement :
+	
+	\begin{itemize}
+		\item le secteur 0 est le premier secteur de la première piste à la périphérie du cylindre.
+		\item le mapping continue dans l'ordre à travers le track, puis le reste des tracks du cylindre, puis à travers les autres cylindres, de l'extérieur vers l'intérieur des plateaux.
+	\end{itemize}
+	
+	\subsection{Attachement du disque}
+	
+	Les hôtes de stockage sont accédés à travers des ports I/O en utilisant des bus I/O.
+	
+	Le SCSI est un bus qui peut compter jusqu'à 16 périphériques par câble. Un SCSI initiator lance une requête qui est servie par des SCSI targets. Chaque target peut avoir jusqu'à 8 unités logiques (disques attachés au contrôleur du périphérique).
+	
+	Le FC est une architecture sérielle à haute vitesse. [11.38]
+	
+	\subsection{NAS}
+	
+	Un NAS (network-attached storage) est un stockage disponible à travers un réseau plutôt qu'avec une connexion locale (telle qu'un bus). NFS et CIFS sont les protocoles généralement utilisés. L'implémentation se fait via des remote procedure calls (RPCs) entre l'hôte et le périphérique de stockage. Il y a également le protocole iSCSI qui utilise le protocole IP pour transporter le protocole SCSI.
+	
+	\dessinS{81}{0.3}
+	
+	\subsection{Réseau de stockage}
+	
+	Les réseaux de stockage (Storage Area Network) sont communs dans des environnements de stockage large. Plusieurs hôtes sont attachés à plusieurs matrices de stockage, ce qui permet une grande flexibilité.
+	
+	\dessinS{82}{0.3}
+	
+\section{Ordonnancement du disque}
+	
+L'OS est responsable de l'utilisation efficace du hardware. Pour les disques-durs, cela signifie qu'il faut un temps d'accès très court et de la bande passante.
+
+Le temps d'accès possède deux composants majeurs :
+
+\begin{itemize}
+	\item seek time : temps pour que les têtes du disque se déplacent au-dessus du secteur désiré
+	\item rotational latency : temps attendu pour que le disque tourne jusqu'à ce que les secteurs désirés soient en dessous de la tête de lecture
+\end{itemize}
+
+Le seek time est à minimiser, or il dépend très fortement de la seek distance. De ce fait, l'ordonnancement des tâches est crucial.
+
+La bande-passante du disque est le nombre total de bytes transférés divisé par le temps entre la première requête pour un service et la complétion du dernier transfert.
+
+Plusieurs algorithmes existent pour servir des requêtes I/O.
+
+	\subsection{FCFS - First-Come First Served}
+	
+	\dessinS{83}{0.3}
+	
+	\subsection{SSTF - Shortest-Seek Time First}
+	
+	On sélectionne la requête qui engendra le seek time minimal à partir de la position courante de la tête. Il s'agit d'une forme d'ordonnancement SJF (Shortest Job First) et peut souffrir de starvation pour certaines requêtes.
+		
+	\dessinS{84}{0.3}
+	
+	\subsection{SCAN}
+	
+	Le bras du disque démarre à une extrémité du disque et se déplace jusqu'à l'autre extrémité, en servant les requêtes au passage.  Cet algorithme est souvent appelé elevator algorithm.
+	
+	\dessinS{85}{0.3}
+	
+	\subsection{C-SCAN}
+	
+	Cette version du SCAN possède un temps d'attente plus uniforme. La tête bouge d'une extrémité à l'autre du disque et sert les requêtes au passage. Lorsqu'il atteint une extrémité, elle retourne immédiatement au début du disque, sans servir de requête sur le retour.
+	
+	On traite ainsi les cylindres comme une liste circulaire qui s'étend du dernier cylindre au tout premier.
+	
+	\dessinS{86}{0.3}
+	
+	\subsection{C-LOOK}
+	
+	Il s'agit d'une version de C-SCAN où le bras va suffisamment loin que pour servir la dernière requête dans chaque direction, puis renverse sa direction sans atteindre la fin du disque.
+	
+	\dessinS{87}{0.3}
+	
+	\subsection{Choix d'un ordonnancement}
+	
+	\begin{itemize}
+		\item SSTF est assez commun et naturel
+		\item SCAN et C-SCAN sont meilleurs pour les systèmes qui ont une charge importante sur les disques
+	\end{itemize}
+	
+	Les performances dépendent du nombre et du type de requête. Les requêtes pour des services du disque peuvent être influencées par la méthode d'allocation des fichiers. Gagner un peu sur le disque permet de beaucoup gagner en cycles CPU.
+	
+	L'algorithme d'ordonnancement du disque doit être écrit comme un module séparé de l'OS afin de pouvoir le remplacer par un algorithme différent si nécessaire.
+	
+	SSTF ou LOOK sont des choix raisonnables pour l'algorithme par défaut.
+	
+	
+\section{Gestion des disques}
+
+Un formatage de bas niveau (ou formatage physique) consiste à diviser le disque en secteurs dans lesquels le contrôleur peut lire et écrire.
+
+Pour utiliser un disque pour y placer des fichiers, l'OS a besoin de stocker ses propres structures de données dessus :
+
+\begin{itemize}
+	\item une partition, qui divise le disque en un ou plusieurs groupes de cylindres
+	\item un formatage logique permet de créer le système de fichier
+\end{itemize}
+
+Un bloc de boot initialise le système. Le bootstrap est stocké dans une ROM et pointe vers le bootstrap loader.
+
+Des méthodes telles que sector sparing sont utilisées pour gérer les mauvais blocs.
+
+\dessinS{88}{0.25}
